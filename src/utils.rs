@@ -9,6 +9,8 @@ use std::ops::Index;
 use std::arch::x86_64::__m256i;
 use std::arch::x86_64::_mm256_add_epi32;
 use std::arch::x86_64::_mm256_sub_epi32;
+use std::arch::x86_64::_mm256_set_epi32;
+use std::arch::x86_64::_mm256_setr_epi32;
 use std::arch::x86_64::_mm256_set1_epi32;
 use std::arch::x86_64::_mm256_cmpeq_epi32;
 use std::arch::x86_64::_mm256_cmpgt_epi32;
@@ -141,6 +143,16 @@ impl M256Epi32
     pub fn zero() -> M256Epi32
     {
         unsafe { M256Epi32(_mm256_setzero_si256()) }
+    }
+
+    pub fn set(e0: i32, e1: i32, e2: i32, e3: i32, e4: i32, e5: i32, e6: i32, e7: i32) -> M256Epi32
+    {
+        unsafe { M256Epi32(_mm256_set_epi32(e0, e1, e2, e3, e4, e5, e6, e7)) }
+    }
+
+    pub fn setr(e0: i32, e1: i32, e2: i32, e3: i32, e4: i32, e5: i32, e6: i32, e7: i32) -> M256Epi32
+    {
+        unsafe { M256Epi32(_mm256_setr_epi32(e0, e1, e2, e3, e4, e5, e6, e7)) }
     }
 
     pub fn fill(item: i32) -> M256Epi32
