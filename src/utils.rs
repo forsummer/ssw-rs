@@ -167,6 +167,7 @@ impl M256Epi32
 
     pub fn from_vec(vec: &Vec<i32>) -> M256Epi32
     {
+        if vec.len() != 8 { panic!("The length of vec should equal to 8") }
         unsafe { M256Epi32(*transmute::<*const i32, *const __m256i>(vec.as_ptr())) }
     }
 
