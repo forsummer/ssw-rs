@@ -171,22 +171,16 @@ impl M256Epi32
         {
             let mut arr = [0; 8];
             let ptr = transmute::<*const __m256i, *const i32>(&(self.0) as *const __m256i);
-            ptr.copy_to(arr.as_mut_ptr(), 8 * size_of::<i32>());
+            ptr.copy_to(arr.as_mut_ptr(), 8);
             arr
         }
     }
 
     pub fn get_max_m256_i32(&self) -> i32
     {
-        let mut max = 0;
-        for i in 0..8
-        {
-            if max < self[i]
-            {
-                max = self[i];
-            }
-        }
-        max
+        let mut arr = self.to_arr();
+        arr.sort();
+        *(arr.last().unwrap())
     }
 }
 
@@ -207,4 +201,55 @@ macro_rules! max_epi32
             max
         }
     };
+}
+
+#[cfg(test)]
+mod test
+{
+    use super::*;
+    #[test]
+    fn add()
+    {
+        let a = M256Epi32::set(1, 2, 3, -9, 0, 8, 4, -19);
+        let b = M256Epi32::set(1, 23, 8, -92, 0, 1, 1, -9);
+        let res = M256Epi32::set(2, 25, 11, -101, 0, 9, 5, -28);
+        assert_eq!(a+b, res);
+    }
+
+    #[test]
+    fn sub()
+    {
+        let a = M256Epi32::set(1, 2, 3, -9, 0, 8, 4, -19);
+        let b = M256Epi32::set(1, 23, 8, -92, 0, 1, 1, -9);
+        let res = M256Epi32::set(0, -21, -5, 83, 0, 7, 3, -10);
+        assert_eq!(a-b, res);
+    }
+
+    #[test]
+    fn index()
+    {
+        let a = M256Epi32::set(1, 2, 3, 4, 5, 6, 7, 8);
+        assert_eq!(a[0], 8);
+        assert_eq!(a[1], 7);
+        assert_eq!(a[2], 6);
+        assert_eq!(a[3], 5);
+        assert_eq!(a[4], 4);
+        assert_eq!(a[5], 3);
+        assert_eq!(a[6], 2);
+        assert_eq!(a[7], 1);
+    }
+
+    #[test]
+    fn to_arr()
+    {
+        let a = M256Epi32::set(1, 2, 3, 4, 5, 6, 7, 8);
+        assert_eq!(a.to_arr(), [8, 7, 6, 5, 4, 3, 2, 1]);
+    }
+
+    #[test]
+    fn get_max()
+    {
+        let a = M256Epi32::set(9899, 27, 53, -9, 5, 6, 17, 8123);
+        assert_eq!(a.get_max_m256_i32(), 9899, "max?");
+    }
 }
