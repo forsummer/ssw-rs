@@ -165,6 +165,11 @@ impl M256Epi32
         unsafe { M256Epi32(*transmute::<*const i32, *const __m256i>(arr.as_ptr())) }
     }
 
+    pub fn from_vec(vec: &Vec<i32>) -> M256Epi32
+    {
+        unsafe { M256Epi32(*transmute::<*const i32, *const __m256i>(vec.as_ptr())) }
+    }
+
     pub fn to_arr(&self) -> [i32; 8]
     {
         unsafe
@@ -173,6 +178,17 @@ impl M256Epi32
             let ptr = transmute::<*const __m256i, *const i32>(&(self.0) as *const __m256i);
             ptr.copy_to(arr.as_mut_ptr(), 8);
             arr
+        }
+    }
+
+    pub fn to_vec(&self) -> Vec<i32>
+    {
+        unsafe
+        {
+            let mut vec = vec![0; 8];
+            let ptr = transmute::<*const __m256i, *const i32>(&self.0 as *const __m256i);
+            ptr.copy_to(vec.as_mut_ptr(), 8);
+            vec
         }
     }
 
@@ -245,6 +261,22 @@ mod test
         assert_eq!(a[5], 3);
         assert_eq!(a[6], 2);
         assert_eq!(a[7], 1);
+    }
+
+    #[test]
+    fn from_vec()
+    {
+        let vec = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        let res = M256Epi32::set(8, 7, 6, 5, 4, 3, 2, 1);
+        assert_eq!(M256Epi32::from_vec(&vec), res);
+    }
+
+    #[test]
+    fn to_vec()
+    {
+        let a = M256Epi32::set(1, 2, 3, 4, 5, 6, 7, 8);
+        let res = vec![8, 7, 6, 5, 4, 3, 2, 1];
+        assert_eq!(a.to_vec(), res);
     }
 
     #[test]
