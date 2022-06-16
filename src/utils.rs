@@ -224,6 +224,35 @@ macro_rules! max_epi32
 mod test
 {
     use super::*;
+
+    #[test]
+    fn test_eq()
+    {
+        let a = M256Epi32::set(9, 21, -2, 0, 3, -1, -9, 21);
+        let b = M256Epi32::set(9, 21, -2, 0, 3, -1, -9, 21);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn test_ne()
+    {
+        let a = M256Epi32::set(9, 21, -2, 0, 3, -1, -9, 21);
+        let b = M256Epi32::set(7, 31, -2, 0, 3, -1, -9, 21);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn test_cmp()
+    {
+        let a = M256Epi32::set(9, 1, 2, 4, 5, -6, 0, 1);
+        let b = M256Epi32::set(8, 0, 1, 3, 4, -7, -1, 0);
+        assert!(a > b);
+
+        let a = M256Epi32::set(9, 1, 2, 4, 5, -6, 0, 1);
+        let b = M256Epi32::set(19, 2, 3, 5, 9, -1, 1, 2);
+        assert!(a < b);
+    }
+
     #[test]
     fn test_add()
     {
