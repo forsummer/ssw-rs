@@ -322,4 +322,15 @@ mod test
         let a = M256Epi32::set(9899, 27, 53, -9, 5, 6, 17, 8123);
         assert_eq!(a.get_max_m256_i32(), 9899, "max?");
     }
+
+    #[test]
+    fn test_max_epi32()
+    {
+        let a = M256Epi32::set(0, 12, 2, -9, 1, 2, -3, 45);
+        let b = M256Epi32::set(8, 1, 9, 879, 0, 12, 4, 78);
+        let c = M256Epi32::set(7, 12, 3, 8, -1, 21, 4, -7);
+
+        let res = M256Epi32::set(8, 12, 9, 879, 1, 21, 4, 78);
+        assert_eq!(max_epi32!(a, b, c), res);
+    }
 }
