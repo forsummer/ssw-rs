@@ -225,7 +225,7 @@ mod test
 {
     use super::*;
     #[test]
-    fn add()
+    fn test_add()
     {
         let a = M256Epi32::set(1, 2, 3, -9, 0, 8, 4, -19);
         let b = M256Epi32::set(1, 23, 8, -92, 0, 1, 1, -9);
@@ -234,7 +234,7 @@ mod test
     }
 
     #[test]
-    fn sub()
+    fn test_sub()
     {
         let a = M256Epi32::set(1, 2, 3, -9, 0, 8, 4, -19);
         let b = M256Epi32::set(1, 23, 8, -92, 0, 1, 1, -9);
@@ -243,7 +243,7 @@ mod test
     }
 
     #[test]
-    fn shl()
+    fn test_shl()
     {
         let a = M256Epi32::set(1, 2, 3, 4, 5, 6, 7, 8);   
         let res = M256Epi32::set(0, 1, 2, 3, 4, 5, 6, 7);
@@ -251,7 +251,7 @@ mod test
     }
 
     #[test]
-    fn index()
+    fn test_index()
     {
         let a = M256Epi32::set(1, 2, 3, 4, 5, 6, 7, 8);
         assert_eq!(a[0], 8);
@@ -265,7 +265,7 @@ mod test
     }
 
     #[test]
-    fn from_vec()
+    fn test_from_vec()
     {
         let vec = vec![1, 2, 3, 4, 5, 6, 7, 8];
         let res = M256Epi32::set(8, 7, 6, 5, 4, 3, 2, 1);
@@ -273,7 +273,7 @@ mod test
     }
 
     #[test]
-    fn to_vec()
+    fn test_to_vec()
     {
         let a = M256Epi32::set(1, 2, 3, 4, 5, 6, 7, 8);
         let res = vec![8, 7, 6, 5, 4, 3, 2, 1];
@@ -281,14 +281,14 @@ mod test
     }
 
     #[test]
-    fn to_arr()
+    fn test_to_arr()
     {
         let a = M256Epi32::set(1, 2, 3, 4, 5, 6, 7, 8);
         assert_eq!(a.to_arr(), [8, 7, 6, 5, 4, 3, 2, 1]);
     }
 
     #[test]
-    fn get_max()
+    fn test_get_max()
     {
         let a = M256Epi32::set(9899, 27, 53, -9, 5, 6, 17, 8123);
         assert_eq!(a.get_max_m256_i32(), 9899, "max?");
