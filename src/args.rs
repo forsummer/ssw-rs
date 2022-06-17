@@ -7,7 +7,7 @@ pub struct CliArgs
 {
     #[clap(name = "db")]
     #[clap(help = "database file path [format: fasta]")]
-    pub db_path: String,
+    pub d_path: String,
 
     #[clap(name = "query")]
     #[clap(help = "query file path [format: fasta]")]
