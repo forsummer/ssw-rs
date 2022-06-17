@@ -2,6 +2,10 @@ use std::fmt::Display;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use tabular::row;
+use tabular::Table;
+
+use crate::max;
 use crate::max_epi32;
 use crate::load::Seq;
 use crate::utils::M256Epi32;
@@ -26,7 +30,15 @@ impl Display for AlignResult
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
-        write!(f, "target_name: {:>}\nquery_name: {:>}\ntarget_start: {:>}\nquery_start: {:>}\nopt: {:>}", self.d_id, self.q_id, self.d_start, self.q_start, self.opt)
+        let table = Table::new("{:<} {:<} {:<}")
+            .set_line_end("\n")
+            .with_row(row!("d_id", ":", self.d_id.clone()))
+            .with_row(row!("q_id", ":", self.q_id.clone()))
+            .with_row(row!("d_start", ":", self.d_start))
+            .with_row(row!("q_start", ":", self.q_start))
+            .with_row(row!("opt", ":", self.opt));
+
+        write!(f, "{}", &table)
     }
 }
 
@@ -159,4 +171,52 @@ pub fn smith_waterman_avx2(d: &Seq, q: &Seq, match_: i32, miss_: i32, go: i32, g
         q_start: opt_pos.j,
         opt: opt.get_max_m256_i32(),
     }
+}
+
+pub fn smith_waterman_serial(d: &Seq, q: &Seq, match_: i32, miss_: i32, go: i32, ge: i32) -> AlignResult
+{
+    let d_seq: Vec<char> = d.seq.to_uppercase().chars().collect();
+    let q_seq: Vec<char> = q.seq.to_uppercase().chars().collect();
+    let d_len = d_seq.len();
+    let q_len = q_seq.len();
+
+    let mut left_f = 0;
+    let mut left_h = 0;
+    let mut prev_e = vec![0; q_len+1];
+    let mut prev_h = vec![0; q_len+1];
+    let pair_score = |r1, r2| if r1 == r2 { match_ } else { miss_ };
+
+    let mut opt = 0;
+    let mut d_start = 0;
+    let mut q_start = 0;
+    for i in 1..d_len+1
+    {
+        let mut current_h = vec![0; q_len+1];
+        for j in 1..q_len+1
+        {
+            let score = pair_score(d_seq[i-1], q_seq[j-1]);
+            let h = max!(prev_e[j], left_f, prev_h[j-1]+score, 0);
+            let e = max!(prev_h[j]-go, prev_e[j]-ge, 0);
+            let f = max!(left_h-go, left_f-ge, 0);
+            let tmp = max!(e, f, h);
+
+            if tmp > opt
+            {
+                opt = tmp;
+                d_start = i - 1;
+                q_start = j - 1;
+            }
+
+            current_h[j] = h;
+            prev_e[j] = e;
+            left_f = f;
+            left_h = h;
+        }
+        prev_h = current_h;
+    }
+
+    let d_id = d.id.clone();
+    let q_id = q.id.clone();
+
+    AlignResult { d_id, q_id, d_start, q_start, opt }
 }
