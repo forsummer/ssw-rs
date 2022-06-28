@@ -1,11 +1,12 @@
-use std::mem::transmute;
-use std::mem::size_of;
-use std::fmt::Debug;
-use std::fmt::Display;
 use std::ops::Add;
 use std::ops::Sub;
 use std::ops::Shl;
 use std::ops::Index;
+use std::ops::IndexMut;
+use std::mem::transmute;
+use std::mem::size_of;
+use std::fmt::Debug;
+use std::fmt::Display;
 use std::arch::x86_64::__m256i;
 use std::arch::x86_64::_mm256_add_epi32;
 use std::arch::x86_64::_mm256_sub_epi32;
@@ -16,6 +17,89 @@ use std::arch::x86_64::_mm256_cmpeq_epi32;
 use std::arch::x86_64::_mm256_cmpgt_epi32;
 use std::arch::x86_64::_mm256_movemask_epi8;
 use std::arch::x86_64::_mm256_setzero_si256;
+
+use tabular::row;
+use tabular::Table;
+
+pub struct AlignResult
+{
+    pub d_id: String,
+    pub q_id: String,
+    pub d_start: usize,
+    pub q_start: usize,
+    pub d_end: usize,
+    pub q_end: usize,
+    pub d_sub: String,
+    pub q_sub: String,
+    pub opt: i32,
+}
+
+impl Display for AlignResult
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        let table = Table::new("{:<} {:<} {:<}")
+            .set_line_end("\n")
+            .with_row(row!("t_id", ":", &self.d_id))
+            .with_row(row!("q_id", ":", &self.q_id))
+            .with_row(row!("opt", ":", self.opt));
+
+        let mut indication_line = String::new();
+        let d_sub = self.d_sub.clone();
+        let q_sub = self.q_sub.clone();
+        for (r1, r2) in d_sub.chars().zip(q_sub.chars())
+        {
+            let c = if [r1, r2].contains(&'-') {' '} else if r1 == r2 {'|'} else {'*'};
+            indication_line.push(c);
+        }
+
+        let seq = Table::new("{:<} {:<} {:<} {:<} {:<}")
+                        .with_row(row!("target", ":", self.d_start, &self.d_sub, self.d_end))
+                        .with_row(row!("", "", "", indication_line, ""))
+                        .with_row(row!("query", ":", self.q_start, &self.q_sub, self.q_end));
+        write!(f, "{}{}", &table, &seq)
+    }
+}
+
+pub struct Mat<T>
+where
+    T: Copy + Clone + Sized + Default
+{
+    mat: Vec<Vec<T>>,
+    pub shape: (usize, usize),
+}
+
+impl<T> Mat<T>
+where
+    T: Copy + Clone + Sized + Default
+{
+    pub fn init(shape: (usize, usize)) -> Mat<T>
+    {
+        let mat = vec![vec![T::default(); shape.1]; shape.0];
+        Mat { mat, shape }
+    }
+}
+
+impl<T> Index<usize> for Mat<T>
+where
+    T: Copy + Clone + Sized + Default
+{
+    type Output = Vec<T>;
+    fn index(&self, index: usize) -> &Self::Output
+    {
+        &self.mat[index]
+    }
+}
+
+impl<T> IndexMut<usize> for Mat<T>
+where
+    T: Copy + Clone + Sized + Default
+{
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output
+    {
+        &mut self.mat[index]
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct M256Epi32(pub __m256i);
