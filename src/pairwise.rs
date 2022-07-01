@@ -1,12 +1,53 @@
+use std::fmt::Display;
 // use std::collections::HashMap;
-// use std::collections::HashSet;
+// use std::c&ollections::HashSet;
+
+use tabular::row;
+use tabular::Table;
 
 use crate::max;
 // use crate::max_epi32;
 use crate::load::Seq;
-use crate::utils::Mat;
-use crate::utils::AlignResult;
+use crate::utils::matrix::Mat;
 // use crate::utils::M256Epi32;
+
+pub struct AlignResult
+{
+    d_id: String,
+    q_id: String,
+    d_start: usize,
+    q_start: usize,
+    d_end: usize,
+    q_end: usize,
+    d_sub: String,
+    q_sub: String,
+    opt: u32
+}
+
+impl Display for AlignResult
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        let result = Table::new("{:<} {:<} {:<}")
+            .with_row(row!("d_id", ":", &self.d_id))
+            .with_row(row!("q_id", ":", &self.q_id))
+            .with_row(row!("opt", ":", self.opt));
+
+        let mut indication_line = String::with_capacity(self.d_sub.len());
+        for (r1, r2) in self.d_sub.chars().zip(self.q_sub.chars())
+        {
+            let identifier = if [r1, r2].contains(&'-') {' '} else if r1 == r2 {'|'} else {'*'};
+            indication_line.push(identifier);
+        }
+
+        let sub_seq = Table::new("{:<} {:<} {:<} {:<} {:<}")
+            .with_row(row!("d_sub", ":", self.d_start, &self.d_sub, self.d_end))
+            .with_row(row!("", "", "", indication_line, ""))
+            .with_row(row!("q_sub", ":", self.q_start, &self.q_sub, self.q_end));
+        
+        write!(f, "{}{}", result, sub_seq)
+    }
+}
 
 // fn diving(q: &str, p: usize) -> Vec<String> 
 // {
@@ -140,7 +181,7 @@ use crate::utils::AlignResult;
 //     }
 // }
 
-pub fn smith_waterman_serial(d: &Seq, q: &Seq, match_: i32, miss_: i32, go: i32, ge: i32) -> AlignResult
+pub fn smith_waterman_serial(d: &Seq, q: &Seq, match_: u32, miss_: u32, go: u32, ge: u32) -> AlignResult
 {
     let d_id = d.id.clone();
     let q_id = q.id.clone();
@@ -149,29 +190,30 @@ pub fn smith_waterman_serial(d: &Seq, q: &Seq, match_: i32, miss_: i32, go: i32,
     let d_len = d_seq.len();
     let q_len = q_seq.len();
 
-    let go = go.abs();
-    let ge = ge.abs();
-
-    let mut prev_e = vec![0; q_len+1];
-    let mut prev_h = vec![0; q_len+1];
-    let score = |r1, r2| if r1 == r2 { match_ } else { miss_ };
+    let mut prev_e: Vec<u32> = vec![0; q_len+1];
+    let mut prev_h: Vec<u32> = vec![0; q_len+1];
     
     let mut opt = 0;
     let (mut d_start, mut q_start) = (0, 0);
     let (mut d_end, mut q_end) = (0, 0);
-    let mut direction_mat: Mat<char> = Mat::init((d_len+1, q_len+1));
+    let mut direction_mat: Mat<u8> = Mat::init((d_len+1, q_len+1));
     for i in 1..d_len+1
     {
-        let mut left_f = 0;
-        let mut left_h = 0;
-        let mut current_h = vec![0; q_len+1];
+        let mut left_f: u32 = 0;
+        let mut left_h: u32 = 0;
+        let mut current_h: Vec<u32> = vec![0; q_len+1];
         for j in 1..q_len+1
         {
-            let e = max!(prev_h[j]-go, prev_e[j]-ge, 0);
-            let f = max!(left_h-go, left_f-ge, 0);
+            let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
+            let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
 
-            let ext = prev_h[j-1] + score(d_seq[i-1], q_seq[j-1]);
-            let h = max!(ext, e, f, 0);
+            let ext = match d_seq[i-1] == q_seq[j-1]
+            {
+                true => prev_h[j-1] + match_,
+                false => prev_h[j-1].saturating_sub(miss_),
+            };
+
+            let h = max!(ext, e, f);
 
             let tmp_opt = *[e, f, h].iter().max().unwrap();
             if tmp_opt > opt
@@ -181,10 +223,14 @@ pub fn smith_waterman_serial(d: &Seq, q: &Seq, match_: i32, miss_: i32, go: i32,
                 q_end = j;
             }
 
-            if h == e { direction_mat[i][j] = 'E' }
-            if h == f { direction_mat[i][j] = 'F' }
-            if h == ext { direction_mat[i][j] = 'H' }
-            if h == 0 { direction_mat[i][j] = char::default() }
+            direction_mat[i][j] = match h
+            {
+                var1 if var1 == e   => 1,
+                var2 if var2 == f   => 2,
+                var3 if var3 == ext => 3,
+                var4 if var4 == 0   => 0,
+                _                        => 0,
+            };
 
             left_f = f;
             left_h = h;
@@ -197,9 +243,9 @@ pub fn smith_waterman_serial(d: &Seq, q: &Seq, match_: i32, miss_: i32, go: i32,
     let (mut i, mut j) = (d_end, q_end);
     let mut d_sub  = String::new();
     let mut q_sub  = String::new();
-    while direction_mat[i][j] != char::default()
+    while direction_mat[i][j] != 0
     {
-        if direction_mat[i][j] == 'E'
+        if direction_mat[i][j] == 1
         {
             d_sub.insert(0, d_seq[i-1]);
             q_sub.insert(0, '-');
@@ -208,7 +254,7 @@ pub fn smith_waterman_serial(d: &Seq, q: &Seq, match_: i32, miss_: i32, go: i32,
             continue;
         }
 
-        if direction_mat[i][j] == 'F'
+        if direction_mat[i][j] == 2
         {
             d_sub.insert(0, '-');
             q_sub.insert(0, q_seq[j-1]);
@@ -217,7 +263,7 @@ pub fn smith_waterman_serial(d: &Seq, q: &Seq, match_: i32, miss_: i32, go: i32,
             continue;
         }
 
-        if direction_mat[i][j] == 'H'
+        if direction_mat[i][j] == 3
         {
             d_sub.insert(0, d_seq[i-1]);
             q_sub.insert(0, q_seq[j-1]);
