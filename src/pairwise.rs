@@ -209,7 +209,7 @@ pub fn smith_waterman_serial(d: &Seq, q: &Seq, match_: u32, miss_: u32, go: u32,
 
             let ext = match d_seq[i-1] == q_seq[j-1]
             {
-                true => prev_h[j-1] + match_,
+                true => prev_h[j-1].saturating_add(match_),
                 false => prev_h[j-1].saturating_sub(miss_),
             };
 
