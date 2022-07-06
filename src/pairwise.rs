@@ -1,6 +1,6 @@
 use std::fmt::Display;
 // use std::collections::HashMap;
-// use std::c&ollections::HashSet;
+// use std::collections::HashSet;
 
 use tabular::row;
 use tabular::Table;
@@ -11,6 +11,8 @@ use crate::load::Seq;
 use crate::utils::matrix::Mat;
 // use crate::utils::M256Epi32;
 
+struct AlignEnd { var: u32, pos: (usize, usize) }
+
 pub struct AlignResult
 {
     d_id: String,
@@ -19,8 +21,8 @@ pub struct AlignResult
     q_start: usize,
     d_end: usize,
     q_end: usize,
-    d_sub: String,
-    q_sub: String,
+    d_best: String,
+    q_best: String,
     opt: u32
 }
 
@@ -33,17 +35,17 @@ impl Display for AlignResult
             .with_row(row!("q_id", ":", &self.q_id))
             .with_row(row!("opt", ":", self.opt));
 
-        let mut indication_line = String::with_capacity(self.d_sub.len());
-        for (r1, r2) in self.d_sub.chars().zip(self.q_sub.chars())
+        let mut indication_line = String::with_capacity(self.d_best.len());
+        for (r1, r2) in self.d_best.chars().zip(self.q_best.chars())
         {
             let identifier = if [r1, r2].contains(&'-') {' '} else if r1 == r2 {'|'} else {'*'};
             indication_line.push(identifier);
         }
 
         let sub_seq = Table::new("{:<} {:<} {:<} {:<} {:<}")
-            .with_row(row!("d_sub", ":", self.d_start, &self.d_sub, self.d_end))
+            .with_row(row!("d_sub", ":", self.d_start+1, &self.d_best, self.d_end))
             .with_row(row!("", "", "", indication_line, ""))
-            .with_row(row!("q_sub", ":", self.q_start, &self.q_sub, self.q_end));
+            .with_row(row!("q_sub", ":", self.q_start+1, &self.q_best, self.q_end));
         
         write!(f, "{}{}", result, sub_seq)
     }
@@ -181,97 +183,186 @@ impl Display for AlignResult
 //     }
 // }
 
-pub fn smith_waterman_serial(d: &Seq, q: &Seq, match_: u32, miss_: u32, go: u32, ge: u32) -> AlignResult
+fn sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32, terminater: u32) -> AlignEnd
 {
-    let d_id = d.id.clone();
-    let q_id = q.id.clone();
-    let d_seq: Vec<char> = d.seq.to_uppercase().chars().collect();
-    let q_seq: Vec<char> = q.seq.to_uppercase().chars().collect();
+    let d_seq: Vec<char> = d.to_uppercase().chars().collect();
+    let q_seq: Vec<char> = q.to_uppercase().chars().collect();
     let d_len = d_seq.len();
     let q_len = q_seq.len();
 
+    let mut left_f: u32 = 0;
+    let mut left_h: u32 = 0;
     let mut prev_e: Vec<u32> = vec![0; q_len+1];
     let mut prev_h: Vec<u32> = vec![0; q_len+1];
+
+    let mut opt = AlignEnd { var: 0, pos: (0, 0) };
+    if terminater == 0
+    {
+        for i in 1..d_len+1
+        {
+            let mut current_h = vec![0; q_len+1];
+            for j in 1..q_len+1
+            {
+                let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
+                let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
+                let ext = match d_seq[i-1] == q_seq[j-1]
+                {
+                    true => prev_h[j-1].saturating_add(match_),
+                    false => prev_h[j-1].saturating_sub(miss_),
+                };
+                let h = max!(ext, e, f);
+
+                left_f = f;
+                left_h = h;
+                prev_e[j] = e;
+                current_h[j] = h;
+            }
+
+            let h_max = *current_h.iter().max().unwrap();
+            if h_max > opt.var
+            {
+                let j = current_h.iter().position(|item| item==&h_max).unwrap();
+                opt.var = h_max;
+                opt.pos = (i, j);
+            }
+            
+            prev_h = current_h;
+        }
+    }
+    else
+    {
+        for i in 1..d_len+1
+        {
+            let mut current_h = vec![0; q_len+1];
+            for j in 1..q_len+1
+            {
+                let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
+                let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
+                let ext = match d_seq[i-1] == q_seq[j-1]
+                {
+                    true => prev_h[j-1].saturating_add(match_),
+                    false => prev_h[j-1].saturating_sub(miss_),
+                };
+                let h = max!(ext, e, f);
+
+                if h == terminater
+                {
+                    opt.var = h;
+                    opt.pos = (i, j);
+                    break;
+                }
+
+                left_f = f;
+                left_h = h;
+                prev_e[j] = e;
+                current_h[j] = h;
+            }
+            prev_h = current_h;
+        }
+    }
+    opt
+}
+
+fn banded_sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32) -> (String, String)
+{
+    let d_seq: Vec<char> = d.to_uppercase().chars().collect();
+    let q_seq: Vec<char> = q.to_uppercase().chars().collect();
+    let d_len = d_seq.len();
+    let q_len = q_seq.len();
+
+    let mut left_f: u32 = 0;
+    let mut left_h: u32 = 0;
+    let mut prev_e: Vec<u32> = vec![0; q_len+1];
+    let mut prev_h: Vec<u32> = vec![0; q_len+1];
+    let mut direction: Mat<u8> = Mat::init((d_len+1, q_len+1));
     
-    let mut opt = 0;
-    let (mut d_start, mut q_start) = (0, 0);
-    let (mut d_end, mut q_end) = (0, 0);
-    let mut direction_mat: Mat<u8> = Mat::init((d_len+1, q_len+1));
     for i in 1..d_len+1
     {
-        let mut left_f: u32 = 0;
-        let mut left_h: u32 = 0;
-        let mut current_h: Vec<u32> = vec![0; q_len+1];
+        let mut current_h = vec![0; q_len+1];
         for j in 1..q_len+1
         {
             let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
             let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
-
             let ext = match d_seq[i-1] == q_seq[j-1]
             {
-                true => prev_h[j-1] + match_,
+                true => prev_h[j-1].saturating_add(match_),
                 false => prev_h[j-1].saturating_sub(miss_),
             };
-
             let h = max!(ext, e, f);
 
-            let tmp_opt = *[e, f, h].iter().max().unwrap();
-            if tmp_opt > opt
-            {
-                opt = tmp_opt;
-                d_end = i;
-                q_end = j;
-            }
-
-            direction_mat[i][j] = match h
+            direction[i][j] = match h
             {
                 var1 if var1 == e   => 1,
                 var2 if var2 == f   => 2,
                 var3 if var3 == ext => 3,
-                var4 if var4 == 0   => 0,
                 _                        => 0,
             };
 
             left_f = f;
             left_h = h;
-            prev_e[j] = e; 
+            prev_e[j] = e;
             current_h[j] = h;
         }
         prev_h = current_h;
     }
 
-    let (mut i, mut j) = (d_end, q_end);
-    let mut d_sub  = String::new();
-    let mut q_sub  = String::new();
-    while direction_mat[i][j] != 0
+    let mut d_best = String::new();
+    let mut q_best = String::new();
+
+    let mut i = d_len;
+    let mut j = q_len;
+    while direction[i][j] != 0
     {
-        if direction_mat[i][j] == 1
+        if direction[i][j] == 1
         {
-            d_sub.insert(0, d_seq[i-1]);
-            q_sub.insert(0, '-');
+            d_best.insert(0, d_seq[i-1]);
+            q_best.insert(0, '-');
             i = i - 1;
-            d_start = i;
             continue;
         }
 
-        if direction_mat[i][j] == 2
+        if direction[i][j] == 2
         {
-            d_sub.insert(0, '-');
-            q_sub.insert(0, q_seq[j-1]);
+            d_best.insert(0, '-');
+            q_best.insert(0, q_seq[j-1]);
             j = j - 1;
-            q_start = j;
             continue;
         }
 
-        if direction_mat[i][j] == 3
+        if direction[i][j] == 3
         {
-            d_sub.insert(0, d_seq[i-1]);
-            q_sub.insert(0, q_seq[j-1]);
-            (i, j) = (i - 1, j - 1);
-            (d_start, q_start) = (i, j);
+            d_best.insert(0, d_seq[i-1]);
+            q_best.insert(0, q_seq[j-1]);
+            i = i - 1;
+            j = j - 1;
             continue;
         }
     }
-    (d_start, q_start) = (d_start + 1, q_start + 1);
-    AlignResult { d_id, q_id, d_start, q_start, d_end, q_end, d_sub, q_sub, opt }
+    (d_best, q_best)
+}
+
+pub fn smith_waterman_scalar(d: &Seq, q: &Seq, match_: u32, miss_: u32, go: u32, ge: u32) -> AlignResult
+{
+    let d_id = d.id.to_string();
+    let q_id = q.id.to_string();
+
+    let align_end = sw_scalar(&d.seq, &q.seq, match_, miss_, go, ge, 0);
+    let d_end = align_end.pos.0;
+    let q_end = align_end.pos.1;
+
+    let d_splited_rev: String = d.seq[0..d_end].chars().rev().collect();
+    let q_splited_rev: String = q.seq[0..q_end].chars().rev().collect();
+
+    let align_start = sw_scalar(&d_splited_rev, &q_splited_rev, match_, miss_, go, ge, align_end.var);
+    let d_start = d_end - align_start.pos.0;
+    let q_start = q_end - align_start.pos.1;
+
+    let d_sub = d.seq[d_start..d_end].to_string();
+    let q_sub = q.seq[q_start..q_end].to_string();
+
+    let (d_best, q_best) = banded_sw_scalar(&d_sub, &q_sub, match_, miss_, go, ge);
+    
+    let opt = align_end.var;
+
+    AlignResult { d_id, q_id, d_start, q_start, d_end, q_end, d_best, q_best, opt }
 }
