@@ -7,7 +7,7 @@ pub struct CliArgs
 {
     #[clap(name = "db")]
     #[clap(help = "database file path [format: fasta]")]
-    pub db_path: String,
+    pub d_path: String,
 
     #[clap(name = "query")]
     #[clap(help = "query file path [format: fasta]")]
@@ -17,35 +17,29 @@ pub struct CliArgs
     #[clap(default_value_t = 1)]
     #[clap(parse(try_from_str = is_integers))]
     #[clap(help = "pair residue matching score")]
-    pub _match: i32,
+    pub _match: u32,
 
     #[clap(long)]
-    #[clap(default_value_t = -1)]
+    #[clap(default_value_t = 1)]
     #[clap(parse(try_from_str = is_integers))]
     #[clap(help = "pair residue miss match score")]
-    pub _miss: i32,
+    pub _miss: u32,
 
     #[clap(long)]
     #[clap(default_value_t = 3)]
-    #[clap(parse(try_from_str = is_non_negative_integers))]
+    #[clap(parse(try_from_str = is_integers))]
     #[clap(help = "gap open score, expect positive integers")]
-    pub gap_open: i32,
+    pub gap_open: u32,
 
     #[clap(long)]
     #[clap(default_value_t = 2)]
-    #[clap(parse(try_from_str = is_non_negative_integers))]
+    #[clap(parse(try_from_str = is_integers))]
     #[clap(help = "gap extend score, expect positive integers")]
-    pub gap_extend: i32,
+    pub gap_extend: u32,
 }
 
-fn is_integers(arg: &str) -> Result<i32, String>
+fn is_integers(arg: &str) -> Result<u32, String>
 {
-    let score: i32 = arg.parse().map_err(|_expection| format!("{} not a integers", arg))?;
+    let score: u32 = arg.parse().map_err(|_expection| format!("{} not a integers", arg))?;
     Ok(score)
-}
-
-fn is_non_negative_integers(arg: &str) -> Result<i32, String>
-{
-    let score: i32 = arg.parse().map_err(|_expection| format!("{} not a Non-negative integers", arg))?;
-    if score >= 0 { Ok(score) } else { Err(format!("{} not a Non-negative integers", score)) }
 }

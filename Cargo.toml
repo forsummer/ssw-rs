@@ -9,5 +9,6 @@ edition = "2021"
 debug = true
 
 [dependencies]
+tabular = "0.2.0"
 needletail = "0.4.1"
 clap = { version = "3.1.18", features = ["derive"] }
