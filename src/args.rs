@@ -16,25 +16,25 @@ pub struct CliArgs
     #[clap(long)]
     #[clap(default_value_t = 1)]
     #[clap(parse(try_from_str = is_integers))]
-    #[clap(help = "pair residue matching score")]
+    #[clap(help = "pair residue matching score (positive integer)")]
     pub _match: u32,
 
     #[clap(long)]
     #[clap(default_value_t = 1)]
     #[clap(parse(try_from_str = is_integers))]
-    #[clap(help = "pair residue miss match score")]
+    #[clap(help = "pair residue miss match score (positive integer)")]
     pub _miss: u32,
 
     #[clap(long)]
     #[clap(default_value_t = 3)]
     #[clap(parse(try_from_str = is_integers))]
-    #[clap(help = "gap open score, expect positive integers")]
+    #[clap(help = "gap open score (positive integer)")]
     pub gap_open: u32,
 
     #[clap(long)]
     #[clap(default_value_t = 2)]
     #[clap(parse(try_from_str = is_integers))]
-    #[clap(help = "gap extend score, expect positive integers")]
+    #[clap(help = "gap extend score (positive integer)")]
     pub gap_extend: u32,
 }
 
