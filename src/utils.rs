@@ -273,7 +273,7 @@ pub mod avx
             }
         }
 
-        pub fn get_max_m256_i32(&self) -> u16
+        pub fn get_max_m256_u16(&self) -> u16
         {
             let mut arr = self.to_arr();
             arr.sort();
@@ -466,7 +466,7 @@ mod test
     fn test_get_max()
     {
         let a = M256Epu16::set(9899, 27, 53, 9, 5, 6, 17, 8123, 9899, 27, 53, 9, 5, 6, 17, 8123);
-        assert_eq!(a.get_max_m256_i32(), 9899);
+        assert_eq!(a.get_max_m256_u16(), 9899);
     }
 
     #[test]
