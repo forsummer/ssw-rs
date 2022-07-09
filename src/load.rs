@@ -1,7 +1,6 @@
 use std::path::Path;
 use needletail::parse_fastx_file;
 
-#[derive(Debug)]
 pub struct Seq { pub id: String, pub seq: String }
 
 pub fn load_fastx<P>(path: P) -> Vec<Seq>
