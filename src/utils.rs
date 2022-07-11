@@ -311,6 +311,16 @@ macro_rules! max
     };
 }
 
+#[macro_export]
+macro_rules! min
+{
+    ($x:expr) => ( $x );
+    ($x:expr, $($xs:expr),+) =>
+    {
+        std::cmp::min($x, min!( $($xs),+ ))
+    };
+}
+
 #[cfg(test)]
 mod test
 {
