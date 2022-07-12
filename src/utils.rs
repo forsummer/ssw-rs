@@ -282,7 +282,7 @@ pub mod avx
     }
 
     #[macro_export]
-    macro_rules! max_epi32
+    macro_rules! max_epu16
     {
         ( $ ( $arr: expr ), * ) => 
         { 
@@ -324,7 +324,7 @@ macro_rules! min
 #[cfg(test)]
 mod test
 {
-    use crate::max_epi32;
+    use crate::max_epu16;
     use super::avx::M256Epu16;
 
     #[test]
@@ -487,6 +487,6 @@ mod test
         let c = M256Epu16::set(7, 12, 3, 8, 1, 21, 4, 7, 3, 7, 1, 9, 912, 13223, 12, 43);
 
         let res = M256Epu16::set(8, 12, 9, 879, 1, 21, 4, 78, 12, 22, 90, 1231, 912, 13223, 87, 98);
-        assert_eq!(max_epi32!(a, b, c), res);
+        assert_eq!(max_epu16!(a, b, c), res);
     }
 }
