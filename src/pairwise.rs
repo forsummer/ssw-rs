@@ -1,6 +1,6 @@
 use std::fmt::Display;
 // use std::collections::HashMap;
-// use std::collections::HashSet;
+// use&& std::collections::HashSet;
 
 use tabular::row;
 use tabular::Table;
@@ -183,12 +183,10 @@ impl Display for AlignResult
 //     }
 // }
 
-fn sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32, terminater: u32) -> AlignEnd
+fn sw_scalar(d: &Vec<u8>, q: &Vec<u8>, match_: u32, miss_: u32, go: u32, ge: u32, terminater: u32) -> AlignEnd
 {
-    let d_seq: Vec<char> = d.to_uppercase().chars().collect();
-    let q_seq: Vec<char> = q.to_uppercase().chars().collect();
-    let d_len = d_seq.len();
-    let q_len = q_seq.len();
+    let d_len = d.len();
+    let q_len = q.len();
 
     let mut left_f: u32 = 0;
     let mut left_h: u32 = 0;
@@ -205,7 +203,7 @@ fn sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32, termin
             {
                 let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
                 let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
-                let ext = match d_seq[i-1] == q_seq[j-1]
+                let ext = match d[i-1] == q[j-1]
                 {
                     true => prev_h[j-1].saturating_add(match_),
                     false => prev_h[j-1].saturating_sub(miss_),
@@ -238,7 +236,7 @@ fn sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32, termin
             {
                 let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
                 let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
-                let ext = match d_seq[i-1] == q_seq[j-1]
+                let ext = match d[i-1] == q[j-1]
                 {
                     true => prev_h[j-1].saturating_add(match_),
                     false => prev_h[j-1].saturating_sub(miss_),
@@ -263,12 +261,10 @@ fn sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32, termin
     opt
 }
 
-fn banded_sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32) -> (String, String)
+fn banded_sw_scalar(d: &Vec<u8>, q: &Vec<u8>, match_: u32, miss_: u32, go: u32, ge: u32) -> (Vec<u8>, Vec<u8>)
 {
-    let d_seq: Vec<char> = d.to_uppercase().chars().collect();
-    let q_seq: Vec<char> = q.to_uppercase().chars().collect();
-    let d_len = d_seq.len();
-    let q_len = q_seq.len();
+    let d_len = d.len();
+    let q_len = q.len();
 
     let mut left_f: u32 = 0;
     let mut left_h: u32 = 0;
@@ -283,7 +279,7 @@ fn banded_sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32)
         {
             let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
             let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
-            let ext = match d_seq[i-1] == q_seq[j-1]
+            let ext = match d[i-1] == q[j-1]
             {
                 true => prev_h[j-1].saturating_add(match_),
                 false => prev_h[j-1].saturating_sub(miss_),
@@ -306,8 +302,8 @@ fn banded_sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32)
         prev_h = current_h;
     }
 
-    let mut d_best = String::new();
-    let mut q_best = String::new();
+    let mut d_best = Vec::new();
+    let mut q_best = Vec::new();
 
     let mut i = d_len;
     let mut j = q_len;
@@ -315,24 +311,24 @@ fn banded_sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32)
     {
         if direction[i][j] == 1
         {
-            d_best.insert(0, d_seq[i-1]);
-            q_best.insert(0, '-');
+            d_best.insert(0, d[i-1]);
+            q_best.insert(0, b'-');
             i = i - 1;
             continue;
         }
 
         if direction[i][j] == 2
         {
-            d_best.insert(0, '-');
-            q_best.insert(0, q_seq[j-1]);
+            d_best.insert(0, b'-');
+            q_best.insert(0, q[j-1]);
             j = j - 1;
             continue;
         }
 
         if direction[i][j] == 3
         {
-            d_best.insert(0, d_seq[i-1]);
-            q_best.insert(0, q_seq[j-1]);
+            d_best.insert(0, d[i-1]);
+            q_best.insert(0, q[j-1]);
             i = i - 1;
             j = j - 1;
             continue;
@@ -343,25 +339,31 @@ fn banded_sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32)
 
 pub fn smith_waterman_scalar(d: &Seq, q: &Seq, match_: u32, miss_: u32, go: u32, ge: u32) -> AlignResult
 {
+    let d_seq = d.seq.to_ascii_uppercase();
+    let q_seq = q.seq.to_ascii_uppercase();
     let d_id = d.id.to_string();
     let q_id = q.id.to_string();
-
-    let align_end = sw_scalar(&d.seq, &q.seq, match_, miss_, go, ge, 0);
+    
+    let align_end = sw_scalar(&d_seq, &q_seq, match_, miss_, go, ge, 0);
     let d_end = align_end.pos.0;
     let q_end = align_end.pos.1;
 
-    let d_splited_rev: String = d.seq[0..d_end].chars().rev().collect();
-    let q_splited_rev: String = q.seq[0..q_end].chars().rev().collect();
+    let mut d_splited_rev = d_seq[0..d_end].to_vec();
+    let mut q_splited_rev = q_seq[0..q_end].to_vec();
+    
+    d_splited_rev.reverse();
+    q_splited_rev.reverse();
 
     let align_start = sw_scalar(&d_splited_rev, &q_splited_rev, match_, miss_, go, ge, align_end.var);
     let d_start = d_end - align_start.pos.0;
     let q_start = q_end - align_start.pos.1;
 
-    let d_sub = d.seq[d_start..d_end].to_string();
-    let q_sub = q.seq[q_start..q_end].to_string();
+    let d_sub = d_seq[d_start..d_end].to_vec();
+    let q_sub = q_seq[q_start..q_end].to_vec();
 
-    let (d_best, q_best) = banded_sw_scalar(&d_sub, &q_sub, match_, miss_, go, ge);
-    
+    let (d_best_u8, q_best_u8) = banded_sw_scalar(&d_sub, &q_sub, match_, miss_, go, ge);
+    let d_best = String::from_utf8(d_best_u8).unwrap();
+    let q_best = String::from_utf8(q_best_u8).unwrap();
     let opt = align_end.var;
 
     AlignResult { d_id, q_id, d_start, q_start, d_end, q_end, d_best, q_best, opt }
