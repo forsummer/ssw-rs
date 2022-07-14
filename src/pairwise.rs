@@ -4,11 +4,11 @@ use std::fmt::Display;
 
 use tabular::row;
 use tabular::Table;
+use ndarray::Array2;
 
 use crate::max;
 // use crate::max_epi32;
 use crate::load::Seq;
-use crate::utils::matrix::Mat;
 // use crate::utils::M256Epi32;
 
 struct AlignEnd { var: u32, pos: (usize, usize) }
@@ -274,7 +274,9 @@ fn banded_sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32)
     let mut left_h: u32 = 0;
     let mut prev_e: Vec<u32> = vec![0; q_len+1];
     let mut prev_h: Vec<u32> = vec![0; q_len+1];
-    let mut direction: Mat<u8> = Mat::init((d_len+1, q_len+1));
+
+    let mut direction = Array2::from_shape_vec((d_len+1, q_len+1), vec![0_u8; (d_len+1) * (q_len+1)]).unwrap();
+    // let mut direction: Mat<u8> = Mat::init((d_len+1, q_len+1));
     
     for i in 1..d_len+1
     {
@@ -290,7 +292,7 @@ fn banded_sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32)
             };
             let h = max!(ext, e, f);
 
-            direction[i][j] = match h
+            direction[(i, j)] = match h
             {
                 var1 if var1 == e   => 1,
                 var2 if var2 == f   => 2,
@@ -311,9 +313,9 @@ fn banded_sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32)
 
     let mut i = d_len;
     let mut j = q_len;
-    while direction[i][j] != 0
+    while direction[(i, j)] != 0
     {
-        if direction[i][j] == 1
+        if direction[(i, j)] == 1
         {
             d_best.insert(0, d_seq[i-1]);
             q_best.insert(0, '-');
@@ -321,7 +323,7 @@ fn banded_sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32)
             continue;
         }
 
-        if direction[i][j] == 2
+        if direction[(i, j)] == 2
         {
             d_best.insert(0, '-');
             q_best.insert(0, q_seq[j-1]);
@@ -329,7 +331,7 @@ fn banded_sw_scalar(d: &str, q: &str, match_: u32, miss_: u32, go: u32, ge: u32)
             continue;
         }
 
-        if direction[i][j] == 3
+        if direction[(i, j)] == 3
         {
             d_best.insert(0, d_seq[i-1]);
             q_best.insert(0, q_seq[j-1]);
