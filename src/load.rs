@@ -1,7 +1,7 @@
 use std::path::Path;
 use needletail::parse_fastx_file;
 
-pub struct Seq { pub id: String, pub seq: String }
+pub struct Seq { pub id: String, pub seq: Vec<u8> }
 
 pub fn load_fastx<P>(path: P) -> Vec<Seq>
 where
@@ -16,7 +16,7 @@ where
     {
         let record = item.map_or_else(|err| panic!("{}", err.msg), |r| r);
         let id = String::from_utf8(record.id().to_vec()).map_or_else(|err| panic!("{}", err), |s| s);
-        let seq = String::from_utf8(record.seq().to_vec()).map_or_else(|err| panic!("{}", err), |s| s);
+        let seq = record.seq().to_vec();
         seq_set.push(Seq { id, seq });
     }
     seq_set
