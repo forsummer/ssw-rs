@@ -17,29 +17,35 @@ pub struct CliArgs
     #[clap(default_value_t = 1)]
     #[clap(parse(try_from_str = is_integers))]
     #[clap(help = "pair residue matching score (positive integer)")]
-    pub _match: u32,
+    pub _match: i32,
 
     #[clap(long)]
     #[clap(default_value_t = 1)]
     #[clap(parse(try_from_str = is_integers))]
     #[clap(help = "pair residue miss match score (positive integer)")]
-    pub _miss: u32,
+    pub _miss: i32,
 
     #[clap(long)]
     #[clap(default_value_t = 3)]
-    #[clap(parse(try_from_str = is_integers))]
+    #[clap(parse(try_from_str = is_non_negative_integer))]
     #[clap(help = "gap open score (positive integer)")]
     pub gap_open: u32,
 
     #[clap(long)]
     #[clap(default_value_t = 2)]
-    #[clap(parse(try_from_str = is_integers))]
+    #[clap(parse(try_from_str = is_non_negative_integer))]
     #[clap(help = "gap extend score (positive integer)")]
     pub gap_extend: u32,
 }
 
-fn is_integers(arg: &str) -> Result<u32, String>
+fn is_integers(arg: &str) -> Result<i32, String>
 {
-    let score: u32 = arg.parse().map_err(|_expection| format!("{} not a integers", arg))?;
+    let score: i32 = arg.parse().map_err(|_expection| format!("{} not a integer", arg))?;
+    Ok(score)
+}
+
+fn is_non_negative_integer(arg: &str) -> Result<u32, String>
+{
+    let score: u32 = arg.parse().map_err(|_expection| format!("{} not a non-negative integer", arg))?;
     Ok(score)
 }
