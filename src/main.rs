@@ -1,11 +1,11 @@
-mod args;
+mod cli;
 mod load;
 mod utils;
 mod score;
 mod pairwise;
 
 use clap::Parser;
-use args::CliArgs;
+use cli::CliArgs;
 use load::load_fastx;
 
 // use score::pam120;
