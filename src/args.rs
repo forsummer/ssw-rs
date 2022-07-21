@@ -5,37 +5,47 @@ use clap::Parser;
 #[clap(about = "Alignment nucleotide seq by smith-waterman algorithm")]
 pub struct CliArgs
 {
-    #[clap(name = "db")]
-    #[clap(help = "database file path [format: fasta]")]
-    pub d_path: String,
-
-    #[clap(name = "query")]
-    #[clap(help = "query file path [format: fasta]")]
-    pub q_path: String,
-
-    #[clap(long)]
+    #[clap(name = "miss", long, short = 'u', display_order = 1)]
     #[clap(default_value_t = 1)]
-    #[clap(parse(try_from_str = is_integers))]
-    #[clap(help = "pair residue matching score (positive integer)")]
-    pub _match: i32,
-
-    #[clap(long)]
-    #[clap(default_value_t = 1)]
-    #[clap(parse(try_from_str = is_integers))]
-    #[clap(help = "pair residue miss match score (positive integer)")]
+    #[clap(value_parser = is_integers)]
+    #[clap(help = "Penalty score when two residue missmatch")]
     pub _miss: i32,
 
-    #[clap(long)]
+    #[clap(name = "match", long, short = 'm', display_order = 2)]
+    #[clap(default_value_t = 1)]
+    #[clap(value_parser = is_integers)]
+    #[clap(help = "Add this score when two residue match")]
+    pub _match: i32,
+    
+    #[clap(name = "gap-open", long, short = 'o', display_order = 3)]
     #[clap(default_value_t = 3)]
-    #[clap(parse(try_from_str = is_non_negative_integer))]
-    #[clap(help = "gap open score (positive integer)")]
+    #[clap(value_parser = is_non_negative_integer)]
+    #[clap(help = "Gap open penalty score, positive integer")]
     pub gap_open: u32,
 
-    #[clap(long)]
+    #[clap(name = "gap-extend", long, short = 'e', display_order = 4)]
     #[clap(default_value_t = 2)]
-    #[clap(parse(try_from_str = is_non_negative_integer))]
-    #[clap(help = "gap extend score (positive integer)")]
+    #[clap(value_parser = is_non_negative_integer)]
+    #[clap(help = "Gap extend penalty score, positive integer")]
     pub gap_extend: u32,
+
+    #[clap(name = "protein", long, short = 'p', display_order = 5)]
+    #[clap(conflicts_with_all = &["miss", "match"])]
+    #[clap(help = "Performing protein sequence alignment")]
+    pub is_protein: bool,
+
+    #[clap(name = "PATH", long = "weight", short = 'w', display_order = 6)]
+    #[clap(conflicts_with_all = &["miss", "match"])]
+    #[clap(help = "Path of weight matrix file, if not specify will use blosum62")]
+    pub weight: Option<String>,
+
+    #[clap(name = "db")]
+    #[clap(help = "Database sequence file path(fasta/fastq)")]
+    pub db: String,
+
+    #[clap(name = "query")]
+    #[clap(help = "Query sequence file path(fasta/fastq)")]
+    pub query: String
 }
 
 fn is_integers(arg: &str) -> Result<i32, String>
