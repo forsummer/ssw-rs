@@ -8,13 +8,13 @@ pub struct CliArgs
     #[clap(name = "miss", long, short = 'u', display_order = 1)]
     #[clap(default_value_t = 1)]
     #[clap(value_parser = is_integers)]
-    #[clap(help = "Penalty score when two residue missmatch")]
+    #[clap(help = "Penalty score when two residue missmatch, positive integer")]
     pub _miss: i32,
 
     #[clap(name = "match", long, short = 'm', display_order = 2)]
     #[clap(default_value_t = 1)]
     #[clap(value_parser = is_integers)]
-    #[clap(help = "Add this score when two residue match")]
+    #[clap(help = "Add this score when two residue match, positive integer")]
     pub _match: i32,
     
     #[clap(name = "gap-open", long, short = 'o', display_order = 3)]
