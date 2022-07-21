@@ -1,6 +1,6 @@
 use std::fmt::Display;
 // use std::collections::HashMap;
-// use&& std::collections::HashSet;
+// use&&&&& std::collections::HashSet;
 
 use tabular::row;
 use tabular::Table;
@@ -183,7 +183,7 @@ impl Display for AlignResult
 //     }
 // }
 
-fn sw_scalar<S>(d: &Vec<u8>, q: &Vec<u8>, go: u32, ge: u32, terminater: u32, score: S) -> AlignEnd
+fn sw_scalar<S>(d: &Vec<u8>, q: &Vec<u8>, go: u32, ge: u32, terminater: u32, score: &S) -> AlignEnd
 where
     S: Fn(u8, u8) -> i32
 {
@@ -206,7 +206,7 @@ where
                 let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
                 let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
 
-                let pair = score(d[i-1], q[j-1]);
+                let pair = score(d[i-1], q[j-1]);         
                 let ext = match pair > 0
                 {
                     true => prev_h[j-1].saturating_add(pair.unsigned_abs()),
@@ -267,7 +267,7 @@ where
     opt
 }
 
-fn banded_sw_scalar<S>(d: &Vec<u8>, q: &Vec<u8>, go: u32, ge: u32, score: S) -> (Vec<u8>, Vec<u8>)
+fn banded_sw_scalar<S>(d: &Vec<u8>, q: &Vec<u8>, go: u32, ge: u32, score: &S) -> (Vec<u8>, Vec<u8>)
 where
     S: Fn(u8, u8) -> i32
 {
@@ -349,7 +349,7 @@ where
     (d_best, q_best)
 }
 
-pub fn smith_waterman_scalar<S>(d: &Seq, q: &Seq, go: u32, ge: u32, score: S) -> AlignResult
+pub fn smith_waterman_scalar<S>(d: &Seq, q: &Seq, go: u32, ge: u32, score: &S) -> AlignResult
 where
     S: Fn(u8, u8) -> i32
 {
@@ -358,19 +358,19 @@ where
     let d_id = d.id.to_string();
     let q_id = q.id.to_string();
     
-    let align_end = sw_scalar(&d_seq, &q_seq, go, ge, 0, &score);
-    let d_end = align_end.pos.0;
-    let q_end = align_end.pos.1;
-
+    let ext_end = sw_scalar(&d_seq, &q_seq, go, ge, 0, &score);
+    let d_end = ext_end.pos.0;
+    let q_end = ext_end.pos.1;
     let mut d_splited_rev = d_seq[0..d_end].to_vec();
     let mut q_splited_rev = q_seq[0..q_end].to_vec();
-    
+
     d_splited_rev.reverse();
     q_splited_rev.reverse();
 
-    let align_start = sw_scalar(&d_splited_rev, &q_splited_rev, go, ge, align_end.var, &score);
-    let d_start = d_end - align_start.pos.0;
-    let q_start = q_end - align_start.pos.1;
+    let ext_start = sw_scalar(&d_splited_rev, &q_splited_rev, go, ge, ext_end.var, &score);
+
+    let d_start = d_end - ext_start.pos.0;
+    let q_start = q_end - ext_start.pos.1;
 
     let d_sub = d_seq[d_start..d_end].to_vec();
     let q_sub = q_seq[q_start..q_end].to_vec();
@@ -378,7 +378,7 @@ where
     let (d_best_u8, q_best_u8) = banded_sw_scalar(&d_sub, &q_sub, go, ge, &score);
     let d_best = String::from_utf8(d_best_u8).unwrap();
     let q_best = String::from_utf8(q_best_u8).unwrap();
-    let opt = align_end.var;
+    let opt = ext_end.var;
 
     AlignResult { d_id, q_id, d_start, q_start, d_end, q_end, d_best, q_best, opt }
 }
