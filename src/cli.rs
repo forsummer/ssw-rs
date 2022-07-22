@@ -1,4 +1,8 @@
 use clap::Parser;
+use clap::ValueEnum;
+
+#[derive(ValueEnum, Clone)]
+pub enum Weight { Blosum50, Blosum62, Pam120  }
 
 #[derive(Parser)]
 #[clap(version = "0.1")]
@@ -34,10 +38,12 @@ pub struct CliArgs
     #[clap(help = "Performing protein sequence alignment")]
     pub is_protein: bool,
 
-    #[clap(name = "PATH", long = "weight", short = 'w', display_order = 6)]
+    #[clap(value_enum)]
+    #[clap(name = "weight", long = "weight", short = 'w', display_order = 6)]
     #[clap(conflicts_with_all = &["miss", "match"])]
-    #[clap(help = "Path of weight matrix file, if not specify will use blosum62")]
-    pub weight: Option<String>,
+    #[clap(default_value_t = Weight::Blosum62)]
+    // #[clap(help = "blosum50 | blosum62 | pam120")]
+    pub weight: Weight,
 
     #[clap(name = "db")]
     #[clap(help = "Database sequence file path(fasta/fastq)")]
