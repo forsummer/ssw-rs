@@ -1,7 +1,6 @@
-#[allow(dead_code)]
 mod blosum
 {
-    pub fn blosum62() -> impl Fn(u8, u8) -> i32
+    pub fn blosum62() -> Box<dyn Fn(u8, u8) -> i32>
     {
         let score = |r1, r2|
         {
@@ -36,10 +35,10 @@ mod blosum
                 [ -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4,  1 ]];
             mat[i][j]
         };
-        score
+        Box::new(score)
     }
     
-    pub fn blosum50() -> impl Fn(u8, u8) -> i32
+    pub fn blosum50() -> Box<dyn Fn(u8, u8) -> i32>
     {
         let score = |r1, r2|
         {
@@ -74,14 +73,13 @@ mod blosum
             [ -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5,  1 ]];            
             mat[i][j]
         };
-        score
+        Box::new(score)
     }
 }
 
-#[allow(dead_code)]
 mod pam
 {
-    pub fn pam120() -> impl Fn(u8, u8) -> i32
+    pub fn pam120() -> Box<dyn Fn(u8, u8) -> i32>
     {
         let score = |r1, r2|
         {
@@ -116,7 +114,7 @@ mod pam
                 [ -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8,  1 ]];
             mat[i][j]
         };
-        score
+        Box::new(score)
     }
 }
 
