@@ -5,12 +5,13 @@ mod score;
 mod pairwise;
 
 use clap::Parser;
+use cli::Weight;
 use cli::CliArgs;
 use load::load_fastx;
 
-// use score::pam120;
+use score::pam120;
+use score::blosum50;
 use score::blosum62;
-// use score::blosum50;
 // use pairwise::smith_waterman_avx2;
 use pairwise::smith_waterman_scalar;
 
@@ -41,7 +42,13 @@ fn main()
     }
     else
     {
-        let ref score = if let None = cli_args.weight { blosum62() } else { todo!() };
+        let ref score = match cli_args.weight
+        {
+            Weight::Pam120 => pam120(),
+            Weight::Blosum50 => blosum50(),
+            Weight::Blosum62 => blosum62(),
+        };
+
         for d in d_set.iter()
         {
             for q in q_set.iter()
