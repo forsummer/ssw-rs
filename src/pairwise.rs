@@ -185,7 +185,7 @@ impl Display for AlignResult
 
 fn sw_scalar<S>(d: &Vec<u8>, q: &Vec<u8>, go: u32, ge: u32, terminater: u32, score: &S) -> AlignEnd
 where
-    S: Fn(u8, u8) -> i32
+    S: Fn(u8, u8) -> i8
 {
     let d_len = d.len();
     let q_len = q.len();
@@ -209,8 +209,8 @@ where
                 let pair = score(d[i-1], q[j-1]);         
                 let ext = match pair > 0
                 {
-                    true => prev_h[j-1].saturating_add(pair.unsigned_abs()),
-                    false => prev_h[j-1].saturating_sub(pair.unsigned_abs()),
+                    true => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
+                    false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
                 };
                 let h = max!(ext, e, f);
 
@@ -244,8 +244,8 @@ where
                 let pair = score(d[i-1], q[j-1]);
                 let ext = match pair > 0
                 {
-                    true => prev_h[j-1].saturating_add(pair.unsigned_abs()),
-                    false => prev_h[j-1].saturating_sub(pair.unsigned_abs()),
+                    true => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
+                    false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
                 };
                 let h = max!(ext, e, f);
 
@@ -269,7 +269,7 @@ where
 
 fn banded_sw_scalar<S>(d: &Vec<u8>, q: &Vec<u8>, go: u32, ge: u32, score: &S) -> (Vec<u8>, Vec<u8>)
 where
-    S: Fn(u8, u8) -> i32
+    S: Fn(u8, u8) -> i8
 {
     let d_len = d.len();
     let q_len = q.len();
@@ -293,8 +293,8 @@ where
             let pair = score(d[i-1], q[j-1]);
             let ext = match pair > 0
             {
-                true => prev_h[j-1].saturating_add(pair.unsigned_abs()),
-                false => prev_h[j-1].saturating_sub(pair.unsigned_abs()),
+                true => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
+                false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
             };
             let h = max!(ext, e, f);
 
@@ -349,9 +349,9 @@ where
     (d_best, q_best)
 }
 
-pub fn smith_waterman_scalar<S>(d: &Seq, q: &Seq, go: u32, ge: u32, score: &S) -> AlignResult
+pub fn smith_waterman_scalar<S>(d: &Seq, q: &Seq, go: u32, ge: u32, score: S) -> AlignResult
 where
-    S: Fn(u8, u8) -> i32
+    S: Fn(u8, u8) -> i8
 {
     let d_seq = d.seq.to_ascii_uppercase();
     let q_seq = q.seq.to_ascii_uppercase();
