@@ -1,6 +1,6 @@
 mod blosum
 {
-    pub fn blosum62() -> Box<dyn Fn(u8, u8) -> i32>
+    pub fn blosum62() -> Box<dyn Fn(u8, u8) -> i8>
     {
         let score = |r1, r2|
         {
@@ -38,7 +38,7 @@ mod blosum
         Box::new(score)
     }
     
-    pub fn blosum50() -> Box<dyn Fn(u8, u8) -> i32>
+    pub fn blosum50() -> Box<dyn Fn(u8, u8) -> i8>
     {
         let score = |r1, r2|
         {
@@ -79,7 +79,7 @@ mod blosum
 
 mod pam
 {
-    pub fn pam120() -> Box<dyn Fn(u8, u8) -> i32>
+    pub fn pam120() -> Box<dyn Fn(u8, u8) -> i8>
     {
         let score = |r1, r2|
         {

@@ -11,25 +11,25 @@ pub struct CliArgs
 {
     #[clap(name = "miss", long, short = 'u', display_order = 1)]
     #[clap(default_value_t = 1)]
-    #[clap(value_parser = is_integers)]
-    #[clap(help = "Penalty score when two residue missmatch, positive integer")]
-    pub _miss: i32,
+    #[clap(value_parser = is_integer)]
+    #[clap(help = "Penalty score when two residue missmatch")]
+    pub _miss: i8,
 
     #[clap(name = "match", long, short = 'm', display_order = 2)]
     #[clap(default_value_t = 1)]
-    #[clap(value_parser = is_integers)]
-    #[clap(help = "Add this score when two residue match, positive integer")]
-    pub _match: i32,
+    #[clap(value_parser = is_integer)]
+    #[clap(help = "Add this score when two residue match")]
+    pub _match: i8,
     
     #[clap(name = "gap-open", long, short = 'o', display_order = 3)]
     #[clap(default_value_t = 3)]
-    #[clap(value_parser = is_non_negative_integer)]
+    #[clap(value_parser = is_positive_integer)]
     #[clap(help = "Gap open penalty score, positive integer")]
     pub gap_open: u32,
 
     #[clap(name = "gap-extend", long, short = 'e', display_order = 4)]
     #[clap(default_value_t = 2)]
-    #[clap(value_parser = is_non_negative_integer)]
+    #[clap(value_parser = is_positive_integer)]
     #[clap(help = "Gap extend penalty score, positive integer")]
     pub gap_extend: u32,
 
@@ -54,14 +54,14 @@ pub struct CliArgs
     pub query: String
 }
 
-fn is_integers(arg: &str) -> Result<i32, String>
+fn is_integer(arg: &str) -> Result<i8, String>
 {
-    let score: i32 = arg.parse().map_err(|_expection| format!("{} not a integer", arg))?;
+    let score = arg.parse().map_err(|_expection| format!("{} not a i8 integer", arg))?;
     Ok(score)
 }
 
-fn is_non_negative_integer(arg: &str) -> Result<u32, String>
+fn is_positive_integer(arg: &str) -> Result<u32, String>
 {
-    let score: u32 = arg.parse().map_err(|_expection| format!("{} not a non-negative integer", arg))?;
+    let score = arg.parse().map_err(|_expection| format!("{} not a non-negative integer", arg))?;
     Ok(score)
 }
