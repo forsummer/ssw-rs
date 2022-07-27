@@ -185,11 +185,13 @@ pub mod avx
 
         pub fn fill(item: u16) -> M256Epu16
         {
-            let ptr_arr_u16 = [item; 16].as_ptr();
+            let ptr_arr_u16 = vec![item; 16].as_ptr();
             unsafe
             {
-                let ptr_m256 = transmute::<*const u16, *const __m256i>(ptr_arr_u16);
-                M256Epu16(_mm256_load_si256(ptr_m256))
+                let mut m256 = _mm256_setzero_si256();
+                let ptr_m256 = transmute::<*mut __m256i, *mut u16>(&mut m256);
+                ptr_arr_u16.copy_to(ptr_m256, 16);
+                M256Epu16(m256)
             }
         }
 
@@ -201,7 +203,11 @@ pub mod avx
         pub fn from_vec(vec: &Vec<u16>) -> M256Epu16
         {
             if vec.len() != 16 { panic!("The length of vec should equal to 16") }
-            unsafe { M256Epu16(*transmute::<*const u16, *const __m256i>(vec.as_ptr())) }
+            unsafe
+            {
+                let vec = vec.iter().rev().map(|item| *item).collect::<Vec<u16>>();
+                M256Epu16(*transmute::<*const u16, *const __m256i>(vec.as_ptr()))
+            }
         }
 
         pub fn to_arr(&self) -> [u16; 16]
@@ -406,8 +412,20 @@ mod test
     fn test_from_vec()
     {
         let vec = vec![16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-        let res = M256Epu16::set(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
-        assert_eq!(M256Epu16::from_vec(&vec), res);
+        // let res = M256Epu16::set(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+        assert_eq!(M256Epu16::from_vec(&vec)[0], 1);
+        assert_eq!(M256Epu16::from_vec(&vec)[1], 2);
+        assert_eq!(M256Epu16::from_vec(&vec)[2], 3);
+        assert_eq!(M256Epu16::from_vec(&vec)[3], 4);
+        assert_eq!(M256Epu16::from_vec(&vec)[4], 5);
+        assert_eq!(M256Epu16::from_vec(&vec)[5], 6);
+    }
+
+    #[test]
+    fn test_fill()
+    {
+        let zero = M256Epu16::fill(0);
+        assert_eq!(zero, M256Epu16::zero());
     }
 
     #[test]
@@ -426,14 +444,14 @@ mod test
     }
 
     #[test]
-    fn test_get_max()
+    fn test_get_max_epu16()
     {
-        let a = M256Epu16::set(9899, 27, 53, 9, 5, 6, 17, 8123, 9899, 27, 53, 9, 5, 6, 17, 8123);
-        assert_eq!(a.get_max_m256_u16(), 9899);
+        let a = M256Epu16::set(65535, 65535, 53, 9, 5, 6, 17, 8123, 9899, 27, 53, 9, 5, 6, 17, 8123);
+        assert_eq!(a.get_max_m256_u16(), 65535);
     }
 
     #[test]
-    fn test_max_epi32()
+    fn test_max_epu16()
     {
         let a = M256Epu16::set(0, 12, 2, 9, 1, 2, 3, 45, 12, 22, 14, 1231, 54, 11, 87, 98);
         let b = M256Epu16::set(8, 1, 9, 879, 0, 12, 4, 78, 12, 10, 90, 56, 53, 21, 46, 65);
