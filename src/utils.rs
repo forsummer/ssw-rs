@@ -238,6 +238,11 @@ pub mod avx
             arr.sort();
             *(arr.last().unwrap())
         }
+
+        pub fn position(&self, item: u16) -> usize
+        {
+            self.to_vec().iter().rposition(|x| *x == item).unwrap()
+        }
     }
 
     #[macro_export]
@@ -411,14 +416,23 @@ mod test
     #[test]
     fn test_from_vec()
     {
-        let vec = vec![16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-        // let res = M256Epu16::set(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
-        assert_eq!(M256Epu16::from_vec(&vec)[0], 1);
-        assert_eq!(M256Epu16::from_vec(&vec)[1], 2);
-        assert_eq!(M256Epu16::from_vec(&vec)[2], 3);
-        assert_eq!(M256Epu16::from_vec(&vec)[3], 4);
-        assert_eq!(M256Epu16::from_vec(&vec)[4], 5);
-        assert_eq!(M256Epu16::from_vec(&vec)[5], 6);
+        let a = M256Epu16::from_vec(&vec![16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
+        assert_eq!(a[0], 1);
+        assert_eq!(a[1], 2);
+        assert_eq!(a[2], 3);
+        assert_eq!(a[3], 4);
+        assert_eq!(a[4], 5);
+        assert_eq!(a[5], 6);
+        assert_eq!(a[6], 7);
+        assert_eq!(a[7], 8);
+        assert_eq!(a[8], 9);
+        assert_eq!(a[9], 10);
+        assert_eq!(a[10], 11);
+        assert_eq!(a[11], 12);
+        assert_eq!(a[12], 13);
+        assert_eq!(a[13], 14);
+        assert_eq!(a[14], 15);
+        assert_eq!(a[15], 16);
     }
 
     #[test]
@@ -448,6 +462,29 @@ mod test
     {
         let a = M256Epu16::set(65535, 65535, 53, 9, 5, 6, 17, 8123, 9899, 27, 53, 9, 5, 6, 17, 8123);
         assert_eq!(a.get_max_m256_u16(), 65535);
+    }
+
+    #[test]
+    fn test_position()
+    {
+        let a = M256Epu16::set(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+        assert_eq!(a.position(1), 15);
+        assert_eq!(a.position(2), 14);
+        assert_eq!(a.position(3), 13);
+        assert_eq!(a.position(4), 12);
+        assert_eq!(a.position(5), 11);
+        assert_eq!(a.position(6), 10);
+        assert_eq!(a.position(7), 9);
+        assert_eq!(a.position(8), 8);
+        assert_eq!(a.position(9), 7);
+        assert_eq!(a.position(10), 6);
+        assert_eq!(a.position(11), 5);
+        assert_eq!(a.position(12), 4);
+        assert_eq!(a.position(13), 3);
+        assert_eq!(a.position(14), 2);
+        assert_eq!(a.position(15), 1);
+        assert_eq!(a.position(16), 0);
+
     }
 
     #[test]
