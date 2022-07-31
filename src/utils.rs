@@ -8,6 +8,7 @@ pub mod avx
     use std::fmt::Display;
     use std::mem::transmute;
     use std::arch::x86_64::__m256i;
+    use std::arch::x86_64::_mm256_set1_epi16;
     use std::arch::x86_64::_mm256_adds_epu16;
     use std::arch::x86_64::_mm256_subs_epu16;
     use std::arch::x86_64::_mm256_load_si256;
@@ -148,7 +149,7 @@ pub mod avx
     {
         pub fn zero() -> M256Epu16
         {
-            unsafe { M256Epu16(_mm256_setzero_si256()) }
+            unsafe { M256Epu16(_mm256_set1_epi16(0)) }
         }
 
         pub fn set(e0: u16, e1: u16, e2: u16, e3: u16,
