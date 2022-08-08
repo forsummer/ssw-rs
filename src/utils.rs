@@ -367,50 +367,11 @@ pub mod avx
             }
         };
     }
-
-    #[macro_export]
-    macro_rules! max_epu16
-    {
-        ( $ ( $arr: expr ), * ) => 
-        { 
-            {
-                let mut max = M256Epu16::fill(0);
-                use std::arch::x86_64::_mm256_max_epu16;
-                let max_arr = |a: M256Epu16, b: M256Epu16| 
-                {
-                    unsafe { _mm256_max_epu16(a.0, b.0) }
-                };
-                $( max = M256Epu16(max_arr(max, $arr)); )*
-                max
-            }
-        };
-    }
-}
-
-#[macro_export]
-macro_rules! max
-{
-    ($x:expr) => ( $x );
-    ($x:expr, $($xs:expr),+) =>
-    {
-        std::cmp::max($x, max!( $($xs),+ ))
-    };
-}
-
-#[macro_export]
-macro_rules! min
-{
-    ($x:expr) => ( $x );
-    ($x:expr, $($xs:expr),+) =>
-    {
-        std::cmp::min($x, min!( $($xs),+ ))
-    };
 }
 
 #[cfg(test)]
 mod test_m256_epu16
 {
-    use crate::max_epu16;
     use std::arch::x86_64::_mm256_set_epi16;
     use std::arch::x86_64::_mm256_set1_epi16;
     use super::avx::M256Epu16;
@@ -613,17 +574,6 @@ mod test_m256_epu16
         assert_eq!(a.position(14), 2);
         assert_eq!(a.position(15), 1);
         assert_eq!(a.position(16), 0);
-    }
-
-    #[test]
-    fn test_max_epu16()
-    {
-        let a = M256Epu16(unsafe {_mm256_set_epi16(0, 12, 2, 9, 1, 2, 3, 45, 12, 22, 14, 1231, 54, 11, 87, 98)});
-        let b = M256Epu16(unsafe {_mm256_set_epi16(8, 1, 9, 879, 0, 12, 4, 78, 12, 10, 90, 56, 53, 21, 46, 65)});
-        let c = M256Epu16(unsafe {_mm256_set_epi16(7, 12, 3, 8, 1, 21, 4, 7, 31, 7, 1, 9, 912, 13223, 12, 43)});
-
-        let res = M256Epu16(unsafe {_mm256_set_epi16(8, 12, 9, 879, 1, 21, 4, 78, 31, 22, 90, 1231, 912, 13223, 87, 98)});
-        assert_eq!(max_epu16!(a, b, c), res);
     }
 }
 
