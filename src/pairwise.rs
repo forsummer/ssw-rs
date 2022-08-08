@@ -28,17 +28,14 @@ macro_rules! min
 
 macro_rules! max_epu16
 {
-    ( $ ( $arr: expr ), * ) => 
+    ($x:expr) => ( $x );
+    ($x: expr, $($xs: expr), +)  => 
     { 
         {
-            let mut max = M256Epu16::fill(0);
-            use std::arch::x86_64::_mm256_max_epu16;
-            let max_arr = |a: M256Epu16, b: M256Epu16| 
+            unsafe
             {
-                unsafe { _mm256_max_epu16(a.0, b.0) }
-            };
-            $( max = M256Epu16(max_arr(max, $arr)); )*
-            max
+                M256Epu16(std::arch::x86_64::_mm256_max_epu16($x.0, max_epu16!( $($xs.0),+ )))
+            }
         }
     };
 }
