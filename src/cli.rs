@@ -13,13 +13,13 @@ pub struct CliArgs
     #[clap(default_value_t = 1)]
     #[clap(value_parser = is_integer)]
     #[clap(help = "Penalty score when two residue missmatch")]
-    pub _miss: i8,
+    pub _miss: i16,
 
     #[clap(name = "match", long, short = 'm', display_order = 2)]
     #[clap(default_value_t = 1)]
     #[clap(value_parser = is_integer)]
     #[clap(help = "Add this score when two residue match")]
-    pub _match: i8,
+    pub _match: i16,
     
     #[clap(name = "gap-open", long, short = 'o', display_order = 3)]
     #[clap(default_value_t = 3)]
@@ -54,7 +54,7 @@ pub struct CliArgs
     pub query: String
 }
 
-fn is_integer(arg: &str) -> Result<i8, String>
+fn is_integer(arg: &str) -> Result<i16, String>
 {
     let score = arg.parse().map_err(|_expection| format!("{} not a i8 integer", arg))?;
     Ok(score)
