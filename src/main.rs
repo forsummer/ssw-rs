@@ -4,15 +4,17 @@ mod utils;
 mod score;
 mod pairwise;
 
+use std::time::Instant;
+
 use clap::Parser;
+
 use cli::Weight;
 use cli::CliArgs;
 use load::load_fastx;
-
 use score::pam120;
 use score::blosum50;
 use score::blosum62;
-// use pairwise::smith_waterman_avx2;
+use pairwise::smith_waterman_avx2;
 use pairwise::smith_waterman_scalar;
 
 fn main()
@@ -21,7 +23,7 @@ fn main()
 
     let go = cli_args.gap_open;
     let ge = cli_args.gap_extend;
-
+    
     let d_set = load_fastx(cli_args.db);
     let q_set = load_fastx(cli_args.query);
 
@@ -36,7 +38,10 @@ fn main()
         {
             for q in q_set.iter()
             {
-                println!("{}", smith_waterman_scalar(d, q, go, ge, score));
+                let tick = Instant::now();
+                println!("opt: {}\n", smith_waterman_avx2(d, q, go as u16, ge as u16, score));
+                // println!("{}", smith_waterman_scalar(d, q, go, ge, score));
+                println!("time-cost: {}s", tick.elapsed().as_secs());
             }
         }
     }
