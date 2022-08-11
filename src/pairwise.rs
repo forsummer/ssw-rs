@@ -5,11 +5,27 @@ use tabular::row;
 use tabular::Table;
 use ndarray::Array2;
 
-use crate::max;
-use crate::min;
-use crate::max_epu16;
 use crate::load::Seq;
 use crate::utils::avx::M256Epu16;
+use crate::utils::avx::max_epu16;
+
+macro_rules! max
+{
+    ($x:expr) => ( $x );
+    ($x:expr, $($xs:expr),+) =>
+    {
+        std::cmp::max($x, max!( $($xs),+ ))
+    };
+}
+
+macro_rules! min
+{
+    ($x:expr) => ( $x );
+    ($x:expr, $($xs:expr),+) =>
+    {
+        std::cmp::min($x, min!( $($xs),+ ))
+    };
+}
 
 struct AlignEnd { var: u32, pos: (usize, usize) }
 
