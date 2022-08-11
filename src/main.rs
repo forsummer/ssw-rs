@@ -1,6 +1,6 @@
 mod cli;
 mod load;
-mod utils;
+mod avx;
 mod score;
 mod pairwise;
 
