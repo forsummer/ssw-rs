@@ -7,6 +7,7 @@ use ndarray::Array2;
 
 use crate::load::Seq;
 use crate::utils::avx::M256Epu16;
+use crate::utils::avx::max_epu16;
 
 macro_rules! max
 {
@@ -23,20 +24,6 @@ macro_rules! min
     ($x:expr, $($xs:expr),+) =>
     {
         std::cmp::min($x, min!( $($xs),+ ))
-    };
-}
-
-macro_rules! max_epu16
-{
-    ($x:expr) => ( $x );
-    ($x: expr, $($xs: expr), +)  => 
-    { 
-        {
-            unsafe
-            {
-                M256Epu16(std::arch::x86_64::_mm256_max_epu16($x.0, max_epu16!( $($xs.0),+ )))
-            }
-        }
     };
 }
 

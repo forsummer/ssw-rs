@@ -367,6 +367,22 @@ pub mod avx
             }
         };
     }
+
+    macro_rules! max_epu16
+    {
+        ($x:expr) => ( $x );
+        ($x: expr, $($xs: expr), +)  => 
+        { 
+            {
+                unsafe
+                {
+                    M256Epu16(std::arch::x86_64::_mm256_max_epu16($x.0, max_epu16!( $($xs.0),+ )))
+                }
+            }
+        };
+    }
+
+    pub (crate) use max_epu16;
 }
 
 #[cfg(test)]
