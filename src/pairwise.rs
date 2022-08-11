@@ -6,8 +6,8 @@ use tabular::Table;
 use ndarray::Array2;
 
 use crate::load::Seq;
-use crate::utils::avx::M256Epu16;
-use crate::utils::avx::max_epu16;
+use crate::avx::avx::M256Epu16;
+use crate::avx::avx::max_epu16;
 
 macro_rules! max
 {
