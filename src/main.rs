@@ -41,7 +41,7 @@ fn main()
                 let tick = Instant::now();
                 println!("opt: {}\n", smith_waterman_avx2(d, q, go as u16, ge as u16, score));
                 // println!("{}", smith_waterman_scalar(d, q, go, ge, score));
-                println!("time-cost: {}s", tick.elapsed().as_secs());
+                println!("time-cost: {}s", tick.elapsed().as_micros());
             }
         }
     }

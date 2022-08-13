@@ -154,7 +154,7 @@ where
     for r in d_seq.iter()
     {
         let mut f = M256Epu16::fill(0);
-        let mut prev_h = *h_store.last().unwrap() << 1;
+        let mut prev_h = h_store.last().unwrap().shift_left_byte();
         let mut h_buffer = vec![M256Epu16::fill(0); seg_num];
         for j in 0..seg_num
         {
@@ -168,7 +168,7 @@ where
             prev_h = h_store[j];
         }
 
-        f = f << 1;
+        f = f.shift_left_byte();
         let mut j = 0;
         while f > h_buffer[j] - go
         {
@@ -177,7 +177,7 @@ where
 
             if j+1 >= seg_num
             {
-                f = f << 1;
+                f = f.shift_left_byte();
                 j = 0;
             }
         }
@@ -285,7 +285,7 @@ where
 
     let mut direction = Array2::from_shape_vec((d_len+1, q_len+1), vec![0_u8; (d_len+1) * (q_len+1)]).unwrap();
     // let mut direction: Mat<u8> = Mat::init((d_len+1, q_len+1));
-    
+
     for i in 1..d_len+1
     {
         let mut current_h = vec![0; q_len+1];
