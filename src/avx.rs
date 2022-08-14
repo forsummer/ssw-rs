@@ -18,6 +18,8 @@ pub mod avx
     use std::arch::x86_64::_mm256_cmpgt_epi8;
     use std::arch::x86_64::_mm256_cmpgt_epi16;
     use std::arch::x86_64::_mm256_movemask_epi8;
+    use std::arch::x86_64::_mm256_alignr_epi8;
+    use std::arch::x86_64::_mm256_permute2x128_si256;
 
     #[derive(Clone, Copy)]
     pub struct M256Epu8(pub __m256i);
@@ -48,7 +50,7 @@ pub mod avx
             {
                 panic!("The capacity of slice should equal to 32 bytes")
             }
-            let v = s.iter().rev().map(|item| *item).collect::<Vec<u16>>();
+            let v = s.iter().map(|item| *item).collect::<Vec<u16>>();
             unsafe { M256Epu16(*transmute::<*const u16, *const __m256i>(v.as_ptr())) }
         }
     }
@@ -225,27 +227,6 @@ pub mod avx
         }
     }
 
-    impl Shl<usize> for M256Epu16
-    {
-        type Output = M256Epu16;
-
-        #[inline]
-        fn shl(self, rhs: usize) -> Self::Output
-        {
-            if rhs > 16 { panic!("Out of bound") }
-            let tail = vec![0; rhs];
-            let remainder = unsafe
-            {
-                transmute::<__m256i, [u16; 16]>(self.0)
-                    .to_vec()
-                    .drain(rhs..)
-                    .collect::<Vec<u16>>()
-            };
-            let m256 = unsafe { *transmute::<*const u16, *const __m256i>([&remainder[..], &tail[..]].concat().as_ptr()) };
-            M256Epu16(m256)
-        }
-    }
-
     impl Index<usize> for M256Epu8
     {
         type Output = u8;
@@ -347,6 +328,15 @@ pub mod avx
         pub fn position(&self, item: u16) -> usize
         {
             self.to_vec().iter().rposition(|x| *x == item).unwrap()
+        }
+
+        pub fn shift_left_byte(self) -> M256Epu16
+        {
+            unsafe
+            {
+                let mask = _mm256_permute2x128_si256::<8>(self.0, self.0);
+                M256Epu16(_mm256_alignr_epi8::<14>(self.0, mask))
+            }
         }
     }
 
@@ -485,22 +475,6 @@ mod test_m256_epu16
     }
 
     #[test]
-    fn test_shl()
-    {
-        let a = unsafe { M256Epu16(_mm256_set_epi16(16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };   
-        let res = unsafe { M256Epu16(_mm256_set_epi16(0, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2)) };
-        assert_eq!(a << 1, res);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_shl_panic()
-    {
-        let mut _a = M256Epu16(unsafe {_mm256_set_epi16(16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)});   
-        _a = _a << 17;
-    }
-
-    #[test]
     fn test_index()
     {
         let a = M256Epu16(unsafe {_mm256_set_epi16(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)});
@@ -527,22 +501,22 @@ mod test_m256_epu16
     {
         let v = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let a = M256Epu16::from(&v[..]);
-        assert_eq!(a[0], 16);
-        assert_eq!(a[1], 15);
-        assert_eq!(a[2], 14);
-        assert_eq!(a[3], 13);
-        assert_eq!(a[4], 12);
-        assert_eq!(a[5], 11);
-        assert_eq!(a[6], 10);
-        assert_eq!(a[7], 9);
-        assert_eq!(a[8], 8);
-        assert_eq!(a[9], 7);
-        assert_eq!(a[10], 6);
-        assert_eq!(a[11], 5);
-        assert_eq!(a[12], 4);
-        assert_eq!(a[13], 3);
-        assert_eq!(a[14], 2);
-        assert_eq!(a[15], 1);
+        assert_eq!(a[0], 1);
+        assert_eq!(a[1], 2);
+        assert_eq!(a[2], 3);
+        assert_eq!(a[3], 4);
+        assert_eq!(a[4], 5);
+        assert_eq!(a[5], 6);
+        assert_eq!(a[6], 7);
+        assert_eq!(a[7], 8);
+        assert_eq!(a[8], 9);
+        assert_eq!(a[9], 10);
+        assert_eq!(a[10], 11);
+        assert_eq!(a[11], 12);
+        assert_eq!(a[12], 13);
+        assert_eq!(a[13], 14);
+        assert_eq!(a[14], 15);
+        assert_eq!(a[15], 16);
     }
 
     #[test]
