@@ -51,7 +51,7 @@ pub mod avx
             }
             let mut v: [u16; 16] = [0; 16];
             v.copy_from_slice(s);
-            unsafe { M256Epu16(*transmute::<*const u16, *const __m256i>(v.as_ptr())) }
+            unsafe { M256Epu16(transmute::<[u16; 16], __m256i>(v)) }
         }
     }
     
