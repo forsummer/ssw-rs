@@ -29,7 +29,6 @@ pub mod avx
 
     impl From<&[u8]> for M256Epu8
     {   
-        #[inline]
         fn from(s: &[u8]) -> Self
         {
             if s.len() * size_of::<u8>() != 32
@@ -50,7 +49,8 @@ pub mod avx
             {
                 panic!("The capacity of slice should equal to 32 bytes")
             }
-            let v = s.iter().map(|item| *item).collect::<Vec<u16>>();
+            let mut v: [u16; 16] = [0; 16];
+            v.copy_from_slice(s);
             unsafe { M256Epu16(*transmute::<*const u16, *const __m256i>(v.as_ptr())) }
         }
     }
