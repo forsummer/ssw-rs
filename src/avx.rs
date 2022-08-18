@@ -1,4 +1,4 @@
-pub mod avx
+pub mod avx2
 {    
     use std::ops::Add;
     use std::ops::Sub;
@@ -330,6 +330,13 @@ pub mod avx
             self.to_vec().iter().rposition(|x| *x == item).unwrap()
         }
 
+        pub fn contains(&self, other: u16) -> bool
+        {
+            let item = M256Epu16::fill(other);
+            let mask = unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi16(self.0, item.0)) };
+            mask != 0
+        }
+
         pub fn shift_left_byte(self) -> M256Epu16
         {
             unsafe
@@ -380,7 +387,7 @@ mod test_m256_epu16
 {
     use std::arch::x86_64::_mm256_set_epi16;
     use std::arch::x86_64::_mm256_set1_epi16;
-    use super::avx::M256Epu16;
+    use super::avx2::M256Epu16;
 
     #[test]
     fn test_eq()
