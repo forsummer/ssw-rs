@@ -572,6 +572,33 @@ mod test_m256_epu16
         assert_eq!(a.position(15), 1);
         assert_eq!(a.position(16), 0);
     }
+
+    #[test]
+    fn test_contains()
+    {
+        let a = M256Epu16(unsafe {_mm256_set_epi16(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)});
+        assert_eq!(a.contains(1), true);
+        assert_eq!(a.contains(2), true);
+        assert_eq!(a.contains(3), true);
+        assert_eq!(a.contains(4), true);
+        assert_eq!(a.contains(5), true);
+        assert_eq!(a.contains(6), true);
+        assert_eq!(a.contains(7), true);
+        assert_eq!(a.contains(8), true);
+        assert_eq!(a.contains(9), true);
+        assert_eq!(a.contains(10), true);
+        assert_eq!(a.contains(11), true);
+        assert_eq!(a.contains(12), true);
+        assert_eq!(a.contains(13), true);
+        assert_eq!(a.contains(14), true);
+        assert_eq!(a.contains(15), true);
+        assert_eq!(a.contains(16), true);
+        assert_eq!(a.contains(17), false);
+        assert_eq!(a.contains(18), false);
+        assert_eq!(a.contains(19), false);
+        assert_eq!(a.contains(20), false);
+        assert_eq!(a.contains(21), false);
+    }
 }
 
 #[cfg(test)]
