@@ -25,13 +25,13 @@ pub struct CliArgs
     #[clap(default_value_t = 3)]
     #[clap(value_parser = is_positive_integer)]
     #[clap(help = "Gap open penalty score, positive integer")]
-    pub gap_open: u32,
+    pub gap_open: u16,
 
     #[clap(name = "gap-extend", long, short = 'e', display_order = 4)]
     #[clap(default_value_t = 2)]
     #[clap(value_parser = is_positive_integer)]
     #[clap(help = "Gap extend penalty score, positive integer")]
-    pub gap_extend: u32,
+    pub gap_extend: u16,
 
     #[clap(name = "protein", long, short = 'p', display_order = 5)]
     #[clap(conflicts_with_all = &["miss", "match"])]
@@ -60,7 +60,7 @@ fn is_integer(arg: &str) -> Result<i16, String>
     Ok(score)
 }
 
-fn is_positive_integer(arg: &str) -> Result<u32, String>
+fn is_positive_integer(arg: &str) -> Result<u16, String>
 {
     let score = arg.parse().map_err(|_expection| format!("{} not a non-negative integer", arg))?;
     Ok(score)
