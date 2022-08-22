@@ -301,6 +301,23 @@ pub mod avx2
         {
             self.to_vec().iter().rposition(|x| *x == item).unwrap()
         }
+
+        #[inline]
+        pub fn contains(&self, other: u8) -> bool
+        {
+            let item = M256Epu8::fill(other);
+            let mask = unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi8(self.0, item.0)) };
+            mask != 0
+        }
+
+        pub fn shift_left_byte(self) -> M256Epu8
+        {
+            unsafe 
+            {
+                let mask = _mm256_permute2x128_si256::<8>(self.0, self.0);
+                M256Epu8(_mm256_alignr_epi8::<15>(self.0, mask))
+            }
+        }
     }
 
     #[allow(dead_code)]
@@ -337,7 +354,7 @@ pub mod avx2
             mask != 0
         }
 
-        pub fn shift_left_byte(self) -> M256Epu16
+        pub fn shift_left_bytex2(self) -> M256Epu16
         {
             unsafe
             {
@@ -347,23 +364,20 @@ pub mod avx2
         }
     }
 
-    #[macro_export]
     macro_rules! max_epu8
     {
-        ( $ ( $arr: expr ), * ) => 
+        ($x:expr) => ( $x );
+        ($x: expr, $($xs: expr), +)  => 
         { 
             {
-                let mut max = M256Epu8::zero();
-                use std::arch::x86_64::_mm256_max_epu8;
-                let max_arr = |a: M256Epu8, b: M256Epu8| 
+                unsafe
                 {
-                    unsafe { _mm256_max_epu8(a.0, b.0) }
-                };
-                $( max = M256Epu8(max_arr(max, $arr)); )*
-                max
+                    M256Epu8(std::arch::x86_64::_mm256_max_epu8($x.0, max_epu8!( $($xs.0),+ )))
+                }
             }
         };
     }
+    pub (crate) use max_epu8;
 
     macro_rules! max_epu16
     {
@@ -378,7 +392,6 @@ pub mod avx2
             }
         };
     }
-
     pub (crate) use max_epu16;
 }
 
