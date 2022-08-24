@@ -2,7 +2,6 @@ pub mod avx2
 {    
     use std::ops::Add;
     use std::ops::Sub;
-    use std::ops::Shl;
     use std::ops::Index;
     use std::fmt::Debug;
     use std::mem::size_of;
@@ -206,27 +205,6 @@ pub mod avx2
         }
     }
 
-    impl Shl<usize> for M256Epu8
-    {
-        type Output = M256Epu8;
-
-        #[inline]
-        fn shl(self, rhs: usize) -> Self::Output
-        {
-            if rhs > 32 { panic!("Out of bound") }
-            let tail = vec![0; rhs];
-            let remainder = unsafe
-            {
-                transmute::<__m256i, [u8; 32]>(self.0)
-                    .to_vec()
-                    .drain(rhs..)
-                    .collect::<Vec<u8>>() 
-            };
-            let m256 = unsafe { *transmute::<*const u8, *const __m256i>([&remainder[..], &tail[..]].concat().as_ptr()) };
-            M256Epu8(m256)
-        }
-    }
-
     impl Index<usize> for M256Epu8
     {
         type Output = u8;
@@ -275,7 +253,6 @@ pub mod avx2
         }
     }
 
-    #[allow(dead_code)]
     impl M256Epu8
     {
         #[inline]
@@ -287,7 +264,7 @@ pub mod avx2
         #[inline]
         pub fn to_vec(&self) -> Vec<u8>
         {
-            unsafe { transmute::<__m256i, [u8; 32]>(self.0).iter().rev().map(|item| *item).collect::<Vec<u8>>() }
+            unsafe { transmute::<__m256i, [u8; 32]>(self.0).iter().map(|item| *item).collect::<Vec<u8>>() }
         }
 
         #[inline]
@@ -310,6 +287,7 @@ pub mod avx2
             mask != 0
         }
 
+        #[inline]
         pub fn shift_left_byte(self) -> M256Epu8
         {
             unsafe 
@@ -347,6 +325,7 @@ pub mod avx2
             self.to_vec().iter().rposition(|x| *x == item).unwrap()
         }
 
+        #[inline]
         pub fn contains(&self, other: u16) -> bool
         {
             let item = M256Epu16::fill(other);
@@ -354,6 +333,7 @@ pub mod avx2
             mask != 0
         }
 
+        #[inline]
         pub fn shift_left_bytex2(self) -> M256Epu16
         {
             unsafe
@@ -448,14 +428,6 @@ mod test_m256_epu16
         let a = M256Epu16(unsafe {_mm256_set_epi16(9, 1, 2, 4, 5, 8, 5, 1, 8, 20, 3, 8, 9, 9, 4, 9)});
         let b = M256Epu16(unsafe {_mm256_set_epi16(8, 1, 1, 3, 4, 7, 1, 0, 7, 1, 2, 5, 8, 4, 3, 2)});
         assert!(!(b < a));
-    }
-
-    #[test]
-    fn test_zero()
-    {
-        let a = M256Epu16::fill(0);
-        let b = M256Epu16(unsafe {_mm256_set_epi16(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)});
-        assert_eq!(a, b);
     }
 
     #[test]
@@ -565,6 +537,15 @@ mod test_m256_epu16
     }
 
     #[test]
+    fn test_shift_left_bytex2()
+    {
+        let a = unsafe { M256Epu16(_mm256_set_epi16(16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        let res = unsafe { M256Epu16(_mm256_set_epi16( 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
+
+        assert_eq!(a.shift_left_bytex2(), res);
+    }
+
+    #[test]
     fn test_position()
     {
         let a = M256Epu16(unsafe {_mm256_set_epi16(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)});
@@ -617,9 +598,222 @@ mod test_m256_epu16
 #[cfg(test)]
 mod test_m256_epu8
 {
+    use std::mem::transmute;
+    use std::arch::x86_64::__m256i;
+    use std::arch::x86_64::_mm256_set_epi8;
+
+    use super::avx2::M256Epu8;
+    use super::avx2::max_epu8;
+
+    #[test]
+    fn test_from_u8()
+    {
+        let a = unsafe { _mm256_set_epi8(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32) };
+        let tmp = [32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+        let b = unsafe { transmute::<[u8; 32], __m256i>(tmp) };
+
+        assert_eq!(M256Epu8(a), M256Epu8(b));
+    }
+
     #[test]
     fn test_eq()
     {
+        let a = unsafe { _mm256_set_epi8(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32) };
+        let b = unsafe { _mm256_set_epi8(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32) };
+        assert_eq!(M256Epu8(a), M256Epu8(b))
+    }
 
+    #[test]
+    fn test_ne()
+    {
+        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        let b = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 0)) };
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn test_gt()
+    {
+        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        let b = unsafe { M256Epu8(_mm256_set_epi8(31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
+            15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
+        assert!(a > b);
+    }
+
+    #[test]
+    fn test_gt_false()
+    {
+        let a = unsafe { M256Epu8(_mm256_set_epi8(0, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        let b = unsafe { M256Epu8(_mm256_set_epi8(31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
+            15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
+    assert!(!(a > b));
+    }
+
+    #[test]
+    fn test_le()
+    {
+        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        let b = unsafe { M256Epu8(_mm256_set_epi8(33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2)) };
+        assert!(a < b);
+    }
+
+    #[test]
+    fn test_le_false()
+    {
+        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        let b = unsafe { M256Epu8(_mm256_set_epi8(0, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2)) };
+        assert!(!(a < b));
+    }
+
+    #[test]
+    fn test_add()
+    {
+        let a = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([1; 32])) };
+        let b = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([2; 32])) };
+        let res = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([3; 32])) };
+        assert_eq!(a + b, res);
+    }
+
+    #[test]
+    fn test_add_saturating()
+    {
+        let a = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([250; 32])) };
+        let b = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([10; 32])) };
+        let res = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([255; 32])) };
+        assert_eq!(a + b, res);
+    }
+
+    #[test]
+    fn test_sub()
+    {
+        let a = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([250; 32])) };
+        let b = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([10; 32])) };
+        let res = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([240; 32])) };
+        assert_eq!(a - b, res);
+    }
+
+    #[test]
+    fn test_sub_saturating()
+    {
+        let a = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([10; 32])) };
+        let b = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([250; 32])) };
+        let res = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([0; 32])) };
+        assert_eq!(a - b, res);
+    }
+
+    #[test]
+    fn test_index()
+    {
+        let tmp = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
+        let a = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>(tmp)) };
+        assert_eq!(a[0], 1);
+        assert_eq!(a[1], 2);
+        assert_eq!(a[2], 3);
+        assert_eq!(a[3], 4);
+        assert_eq!(a[4], 5);
+        assert_eq!(a[5], 6);
+        assert_eq!(a[6], 7);
+        assert_eq!(a[7], 8);
+        assert_eq!(a[8], 9);
+        assert_eq!(a[9], 10);
+        assert_eq!(a[10], 11);
+        assert_eq!(a[11], 12);
+        assert_eq!(a[12], 13);
+        assert_eq!(a[13], 14);
+        assert_eq!(a[14], 15);
+        assert_eq!(a[15], 16);
+        assert_eq!(a[16], 17);
+        assert_eq!(a[17], 18);
+        assert_eq!(a[18], 19);
+        assert_eq!(a[19], 20);
+        assert_eq!(a[20], 21);
+        assert_eq!(a[21], 22);
+        assert_eq!(a[22], 23);
+        assert_eq!(a[23], 24);
+        assert_eq!(a[24], 25);
+        assert_eq!(a[25], 26);
+        assert_eq!(a[26], 27);
+        assert_eq!(a[27], 28);
+        assert_eq!(a[28], 29);
+        assert_eq!(a[29], 30);
+        assert_eq!(a[30], 31);
+        assert_eq!(a[31], 32);
+    }
+
+    #[test]
+    fn test_fill()
+    {
+        let a = unsafe { M256Epu8(transmute::<[u8; 32], __m256i>([255; 32])) };
+        assert_eq!(M256Epu8::fill(255), a);
+    }
+
+    #[test]
+    fn test_to_vec()
+    {
+        let a = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32];
+        let b = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        assert_eq!(a, b.to_vec());
+    }
+
+    #[test]
+    fn test_max()
+    {
+        let a = unsafe { M256Epu8(_mm256_set_epi8(100, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        let b = unsafe { M256Epu8(_mm256_set_epi8(100, 31, 40, 97, 28, 27, 26, 25, 24, 23, 22, 45, 20, 19, 18, 17,
+            71, 80, 14, 13, 12, 11, 10, 9, 8, 7, 9, 5, 4, 3, 2, 1)) };
+        let res = unsafe { M256Epu8(_mm256_set_epi8(100, 31, 40, 97, 28, 27, 26, 25, 24, 23, 22, 45, 20, 19, 18, 17,
+            71, 80, 14, 13, 12, 11, 10, 9, 8, 7, 9, 5, 4, 3, 2, 1)) };
+        assert_eq!(max_epu8!(a, b), res);    
+    }
+
+    #[test]
+    fn test_get_max_epu8()
+    {
+        let a = unsafe { M256Epu8(_mm256_set_epi8(100, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 127)) };
+        assert_eq!(a.get_max(), 127);
+    }
+
+    #[test]
+    fn test_position()
+    {
+        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        assert_eq!(a.position(32), 31);
+    }
+
+    #[test]
+    fn test_contains()
+    {
+        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        assert_eq!(a.contains(32), true);
+        assert_eq!(a.contains(33), false);
+    }
+
+    #[test]
+    fn test_shift_left_byte()
+    {
+        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        let b = unsafe { M256Epu8(_mm256_set_epi8(31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
+        assert_eq!(a.shift_left_byte(), b);
     }
 }
