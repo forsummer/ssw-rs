@@ -15,7 +15,7 @@ use score::pam120;
 use score::blosum50;
 use score::blosum62;
 use pairwise::smith_waterman_avx2;
-use pairwise::smith_waterman_scalar;
+// use pairwise::smith_waterman_scalar;
 
 fn main()
 {
@@ -33,21 +33,21 @@ fn main()
         let miss_ = -(cli_args._miss.abs());
         let match_ = cli_args._match.abs();
 
-        let ref score = |r1, r2| if r1 == r2 { match_ } else { miss_ };
+        let score = |r1, r2| if r1 == r2 { match_ } else { miss_ };
         for d in d_set.iter()
         {
             for q in q_set.iter()
             {
                 let tick = Instant::now();
-                println!("opt: {}\n", smith_waterman_avx2(d, q, go as u16, ge as u16, score));
-                // println!("{}", smith_waterman_scalar(d, q, go, ge, score));
-                println!("time-cost: {}s", tick.elapsed().as_micros());
+                println!("{}", smith_waterman_avx2(d, q, go, ge, score));
+                // println!("{}", smith_waterman_scalar(d, q, go as u32, ge as u32, score));
+                println!("time-cost: {}s", tick.elapsed().as_secs_f64());
             }
         }
     }
     else
     {
-        let ref score = match cli_args.weight
+        let score = match cli_args.weight
         {
             Weight::Pam120 => pam120(),
             Weight::Blosum50 => blosum50(),
@@ -58,7 +58,7 @@ fn main()
         {
             for q in q_set.iter()
             {
-                println!("{}", smith_waterman_scalar(d, q, go, ge, score));
+                println!("{}", smith_waterman_avx2(d, q, go, ge, &score));
             }
         }
     }

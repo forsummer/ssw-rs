@@ -10,6 +10,5 @@ debug = true
 
 [dependencies]
 tabular = "0.2.0"
-ndarray = "0.15.4"
 needletail = "0.4.1"
 clap = { version = "3.2.13", features = ["derive"] }
