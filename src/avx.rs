@@ -7,6 +7,8 @@ pub mod avx2
     use std::mem::size_of;
     use std::mem::transmute;
     use std::arch::x86_64::__m256i;
+    use std::arch::x86_64::_mm256_set_epi8;
+    use std::arch::x86_64::_mm256_max_epu8;
     use std::arch::x86_64::_mm256_adds_epu8;
     use std::arch::x86_64::_mm256_adds_epu16;
     use std::arch::x86_64::_mm256_subs_epu8;
@@ -16,6 +18,7 @@ pub mod avx2
     use std::arch::x86_64::_mm256_cmpeq_epi16;
     use std::arch::x86_64::_mm256_cmpgt_epi8;
     use std::arch::x86_64::_mm256_cmpgt_epi16;
+    use std::arch::x86_64::_mm256_shuffle_epi8;
     use std::arch::x86_64::_mm256_movemask_epi8;
     use std::arch::x86_64::_mm256_alignr_epi8;
     use std::arch::x86_64::_mm256_permute2x128_si256;
@@ -34,8 +37,9 @@ pub mod avx2
             {
                 panic!("The capacity of slice should equal to 32 bytes")
             }
-            let v = s.iter().rev().map(|item| *item).collect::<Vec<u8>>();
-            unsafe { M256Epu8(*transmute::<*const u8, *const __m256i>(v.as_ptr())) }
+            let mut v = [0; 32];
+            v.copy_from_slice(s);
+            unsafe { M256Epu8(transmute::<[u8; 32], __m256i>(v)) }
         }
     }
 
@@ -64,7 +68,7 @@ pub mod avx2
             {
                 panic!("The capacity of iter should equal to 32 bytes");
             }
-            let ptr_rev_v = v.iter().rev().map(|item| *item).collect::<Vec<u8>>().as_ptr();
+            let ptr_rev_v = v.iter().rev().copied().collect::<Vec<u8>>().as_ptr();
             unsafe { M256Epu8(*transmute::<*const u8, *const __m256i>(ptr_rev_v)) }
         }
     }
@@ -79,7 +83,7 @@ pub mod avx2
             {
                 panic!("The capacity of iter should equal to 32 bytes")
             }
-            let ptr_rev_v = v.iter().rev().map(|item| *item).collect::<Vec<u16>>().as_ptr();
+            let ptr_rev_v = v.iter().rev().copied().collect::<Vec<u16>>().as_ptr();
             unsafe { M256Epu16(*transmute::<*const u16, *const __m256i>(ptr_rev_v)) }
         }
     }
@@ -91,12 +95,6 @@ pub mod avx2
         {
             unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi8(self.0, other.0)) == -1 }
         }
-
-        #[inline]
-        fn ne(&self, other: &Self) -> bool
-        {
-            !unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi8(self.0, other.0)) == -1 }
-        }
     }
 
     impl PartialEq for M256Epu16
@@ -105,12 +103,6 @@ pub mod avx2
         fn eq(&self, other: &Self) -> bool
         {
             unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi8(self.0, other.0)) == -1 }
-        }
-
-        #[inline]
-        fn ne(&self, other: &Self) -> bool
-        {
-            !unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi16(self.0, other.0)) == -1 }
         }
     }
 
@@ -253,6 +245,7 @@ pub mod avx2
         }
     }
 
+    #[allow(dead_code)]
     impl M256Epu8
     {
         #[inline]
@@ -262,15 +255,33 @@ pub mod avx2
         }
 
         #[inline]
-        pub fn to_vec(&self) -> Vec<u8>
+        pub fn to_vec(self) -> Vec<u8>
         {
-            unsafe { transmute::<__m256i, [u8; 32]>(self.0).iter().map(|item| *item).collect::<Vec<u8>>() }
+            unsafe { transmute::<__m256i, [u8; 32]>(self.0).to_vec() }
         }
 
         #[inline]
         pub fn get_max(&self) -> u8
         {
-            *self.to_vec().iter().max().unwrap()
+            const IMM: i32 = 1;
+            let mut tmp = unsafe { _mm256_max_epu8(self.0, _mm256_permute2x128_si256::<IMM>(self.0, self.0)) };
+
+            let mask = unsafe 
+            { [ _mm256_set_epi8(-127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127,
+                    7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8),
+                _mm256_set_epi8(-127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127,
+                    -127, -127, -127, -127, -127, -127, -127, -127, 3, 2, 1, 0, 7, 6, 5, 4),
+                _mm256_set_epi8(-127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127,
+                    -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, 1, 0, 3, 2),
+                _mm256_set_epi8(-127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127,
+                    -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, 0, 1) ]
+            };
+
+            for m in mask.iter()
+            {
+                tmp = unsafe { _mm256_max_epu8(tmp, _mm256_shuffle_epi8(tmp, *m)) }
+            }
+            unsafe { *transmute::<*const __m256i, *const u8>(&tmp as *const __m256i) }
         }
 
         #[inline]
@@ -288,13 +299,19 @@ pub mod avx2
         }
 
         #[inline]
-        pub fn shift_left_byte(self) -> M256Epu8
+        pub fn shift_left_byte(&mut self)
         {
             unsafe 
             {
                 let mask = _mm256_permute2x128_si256::<8>(self.0, self.0);
-                M256Epu8(_mm256_alignr_epi8::<15>(self.0, mask))
+                *self = M256Epu8(_mm256_alignr_epi8::<15>(self.0, mask))
             }
+        }
+
+        #[inline]
+        pub fn zero_out(&mut self)
+        {
+            *self = unsafe { M256Epu8(_mm256_permute2x128_si256::<255>(self.0, self.0)) }
         }
     }
 
@@ -308,7 +325,7 @@ pub mod avx2
         }
 
         #[inline]
-        pub fn to_vec(&self) -> Vec<u16>
+        pub fn to_vec(self) -> Vec<u16>
         {
             unsafe { transmute::<__m256i, [u16; 16]>(self.0).to_vec() }
         }
@@ -334,16 +351,23 @@ pub mod avx2
         }
 
         #[inline]
-        pub fn shift_left_bytex2(self) -> M256Epu16
+        pub fn shift_left_bytex2(&mut self)
         {
             unsafe
             {
                 let mask = _mm256_permute2x128_si256::<8>(self.0, self.0);
-                M256Epu16(_mm256_alignr_epi8::<14>(self.0, mask))
+                *self = M256Epu16(_mm256_alignr_epi8::<14>(self.0, mask))
             }
+        }
+
+        #[inline]
+        pub fn zero_out(&mut self)
+        {
+            *self = unsafe { M256Epu16(_mm256_permute2x128_si256::<255>(self.0, self.0)) }
         }
     }
 
+    #[allow(unused_macros)]
     macro_rules! max_epu8
     {
         ($x:expr) => ( $x );
@@ -357,6 +381,7 @@ pub mod avx2
             }
         };
     }
+    #[allow(unused_imports)]
     pub (crate) use max_epu8;
 
     macro_rules! max_epu16
@@ -539,10 +564,10 @@ mod test_m256_epu16
     #[test]
     fn test_shift_left_bytex2()
     {
-        let a = unsafe { M256Epu16(_mm256_set_epi16(16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        let mut a = unsafe { M256Epu16(_mm256_set_epi16(16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
         let res = unsafe { M256Epu16(_mm256_set_epi16( 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
-
-        assert_eq!(a.shift_left_bytex2(), res);
+        a.shift_left_bytex2();
+        assert_eq!(a, res);
     }
 
     #[test]
@@ -810,10 +835,11 @@ mod test_m256_epu8
     #[test]
     fn test_shift_left_byte()
     {
-        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+        let mut a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
             16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
         let b = unsafe { M256Epu8(_mm256_set_epi8(31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
             16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
-        assert_eq!(a.shift_left_byte(), b);
+        a.shift_left_byte();
+        assert_eq!(a, b);
     }
 }
