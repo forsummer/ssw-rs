@@ -16,6 +16,10 @@ macro_rules! min
     };
 }
 
+#[derive(Debug)]
+enum AlignErr { OverFlow }
+
+#[derive(Debug, Clone)]
 struct AlignEnd<T: Sized + Copy> { var: T, pos: (usize, usize) }
 
 pub struct AlignResult
@@ -58,7 +62,6 @@ impl std::fmt::Display for AlignResult
 
 mod sw_avx2
 {
-    use core::panic;
     use std::mem::swap;
 
     use crate::load::Seq;
@@ -67,12 +70,11 @@ mod sw_avx2
     use crate::avx::avx2::M256Epu16;
     use crate::avx::avx2::max_epu16;
     use crate::pairwise::AlignEnd;
+    use crate::pairwise::AlignErr;
     use crate::pairwise::AlignResult;
-    
-    #[allow(dead_code)]
+
     enum VecType { Epu8, Epu16 }
 
-    #[allow(dead_code)]
     enum Profile
     {
         Byte { bias: u8,  profile: Vec<Vec<M256Epu8>>  },
@@ -173,7 +175,7 @@ mod sw_avx2
         }
     }
 
-    fn banded_sw<S>(d: &Vec<u8>, q: &Vec<u8>, go: u8, ge: u8, score: &S) -> (Vec<u8>, Vec<u8>)
+    fn banded_sw<S>(d: &[u8], q: &[u8], go: u8, ge: u8, score: &S) -> (Vec<u8>, Vec<u8>)
     where
         S: Fn(u8, u8) -> i8
     {
@@ -259,8 +261,7 @@ mod sw_avx2
         (d_best, q_best)
     }
 
-    #[allow(dead_code)]
-    fn ssw_byte(d: &Vec<u8>, q: &Vec<u8>, go: u8, ge: u8, terminater: u8, profile: &Profile) -> AlignEnd<u8>
+    fn ssw_byte(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u8, profile: &Profile) -> Result<AlignEnd<u8>, AlignErr>
     {
         let go = M256Epu8::fill(go);
         let ge = M256Epu8::fill(ge);
@@ -268,11 +269,11 @@ mod sw_avx2
         let (bias, profile) = match profile
         {
             Profile::Byte { bias, profile } => (M256Epu8::fill(*bias), profile),
-            _ => panic!(),
+            _ => panic!("Unacceptable profile"),
         };
 
         let seg_num = (q.len() + 31) / 32;
-
+        
         let mut f = M256Epu8::fill(0);
         let mut h_store = vec![M256Epu8::fill(0); seg_num];
         let mut e_store = vec![M256Epu8::fill(0); seg_num];
@@ -280,7 +281,8 @@ mod sw_avx2
 
         let mut opt_var = 0;
         let mut opt_pos = (0, 0);
-        let mut max_vec = M256Epu8::fill(0);
+        let mut max = M256Epu8::fill(0);
+        let mut is_overflow = 0;
 
         if terminater == 0
         {
@@ -321,9 +323,19 @@ mod sw_avx2
                     }
                 }
 
-                h_buffer.iter().for_each(|h| max_vec = max_epu8!(max_vec, *h));
+                h_buffer.iter().for_each(|h| max = max_epu8!(max, *h));
 
-                let tmp = max_vec.get_max();
+                let tmp = max.get_max();
+
+                if tmp == u8::MAX
+                {
+                    is_overflow = is_overflow + 1;
+                    if is_overflow > 1
+                    {
+                        Err(AlignErr::OverFlow)?
+                    }
+                }
+
                 if tmp > opt_var
                 {
                     opt_var = tmp;
@@ -392,11 +404,10 @@ mod sw_avx2
                 swap::<Vec<M256Epu8>>(&mut h_store, &mut h_buffer);
             }
         }
-        AlignEnd { var: opt_var, pos: opt_pos }
+        Ok(AlignEnd { var: opt_var, pos: opt_pos })
     }
 
-    #[allow(dead_code)]
-    fn ssw_word(d: &Vec<u8>, q: &Vec<u8>, go: u8, ge: u8, terminater: u16, profile: &Profile) -> AlignEnd<u16>
+    fn ssw_word(d: &Vec<u8>, q: &Vec<u8>, go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd<u16>, AlignErr>
     {
         let go = M256Epu16::fill(go as u16);
         let ge = M256Epu16::fill(ge as u16);
@@ -404,7 +415,7 @@ mod sw_avx2
         let (bias, profile) = match profile
         {
             Profile::Word { bias, profile } => (M256Epu16::fill(*bias), profile),
-            _ => panic!(),
+            _ => panic!("Unacceptable profile"),
         };
         
         let seg_num = (q.len() + 15) / 16;
@@ -415,7 +426,8 @@ mod sw_avx2
 
         let mut opt_var = 0;
         let mut opt_pos = (0, 0);
-        let mut max_vec = M256Epu16::fill(0);
+        let mut max = M256Epu16::fill(0);
+        let mut is_overflow = 0;
 
         if terminater == 0
         {
@@ -429,7 +441,7 @@ mod sw_avx2
                 for (e_s, (h_buf, (h_s, score))) in e_store.iter_mut()
                     .zip(h_buffer.iter_mut()
                     .zip(h_store.iter_mut()
-                    .zip(profile.get((r - 65) as usize).unwrap().iter())))
+                    .zip(profile[(r - 65) as usize].iter())))
                 {
                     let h = max_epu16!(prev_h + (*score) - bias, e_s);
                     let e = max_epu16!(h - go, *e_s - ge);
@@ -455,8 +467,18 @@ mod sw_avx2
                     }
                 }
 
-                h_buffer.iter().for_each(|h| max_vec = max_epu16!(*h, max_vec));
-                let tmp = max_vec.get_max();
+                h_buffer.iter().for_each(|h| max = max_epu16!(*h, max));
+                let tmp = max.get_max();
+
+                if tmp == u16::MAX
+                {
+                    is_overflow = is_overflow + 1;
+                    if is_overflow > 1
+                    {
+                        Err(AlignErr::OverFlow)?
+                    }
+                }
+
                 if tmp > opt_var
                 {
                     opt_var = tmp;
@@ -524,7 +546,7 @@ mod sw_avx2
                 swap::<Vec<M256Epu16>>(&mut h_store, &mut h_buffer);
             }
         }
-        AlignEnd { var: opt_var, pos: opt_pos }
+        Ok(AlignEnd { var: opt_var, pos: opt_pos })
     }
 
     pub fn smith_waterman_avx2<S>(d: &Seq, q:&Seq, go: u8, ge: u8, f: S) -> AlignResult
@@ -538,33 +560,76 @@ mod sw_avx2
         let q_seq = q.seq.to_ascii_uppercase();
 
         let profile = query_profile(&d_seq, &q_seq, VecType::Epu8, &f);
-        let ext_end = ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile);
-        
-        let opt = ext_end.var;
-        let d_end = ext_end.pos.0 + 1;
-        let q_end = ext_end.pos.1 + 1;
-        
-        let mut d_splited_rev = d_seq[0..d_end].to_vec();
-        let mut q_splited_rev = q_seq[0..q_end].to_vec();
-        d_splited_rev.reverse();
-        q_splited_rev.reverse();
+        let ext_end = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile)
+        {
+            Err(_err)    => None,
+            Ok(res)  => Some(res),
+        };
 
-        let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, VecType::Epu8, &f);
-        let ext_start = ssw_byte(&d_splited_rev, &q_splited_rev, go, ge, opt, &profile_rev);
+        if let Some(res) = ext_end
+        {
+            let d_end = res.pos.0 + 1;
+            let q_end = res.pos.1 + 1;
 
-        let d_start = d_end - ext_start.pos.0;
-        let q_start = q_end - ext_start.pos.1;
+            let mut d_splited_rev = d_seq[0..d_end].to_vec();
+            let mut q_splited_rev = q_seq[0..q_end].to_vec();
+            d_splited_rev.reverse();
+            q_splited_rev.reverse();
 
-        let d_sub = d_seq[d_start-1..d_end].to_vec();
-        let q_sub = q_seq[q_start-1..q_end].to_vec();
+            let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, VecType::Epu8, &f);
+            let ext_start = ssw_byte(&d_splited_rev, &q_splited_rev, go, ge, res.var, &profile_rev).unwrap();
 
-        let (d_best_u8, q_best_u8) = banded_sw(&d_sub, &q_sub, go, ge, &f);
+            let d_start = d_end - ext_start.pos.0;
+            let q_start = q_end - ext_start.pos.1;
+    
+            let d_sub = &d_seq[d_start-1..d_end];
+            let q_sub = &q_seq[q_start-1..q_end];
 
-        let d_best = String::from_utf8(d_best_u8).unwrap();
-        let q_best = String::from_utf8(q_best_u8).unwrap();
-        let opt = opt as u32;
+            let (d_best_u8, q_best_u8) = banded_sw(&d_sub, &q_sub, go, ge, &f);
 
-        AlignResult { d_id, q_id, d_start, q_start, d_end, q_end, d_best, q_best, opt }
+            let d_best = String::from_utf8(d_best_u8).unwrap();
+            let q_best = String::from_utf8(q_best_u8).unwrap();
+            
+            let opt = res.var as u32;
+
+            AlignResult { d_id, q_id, d_start, q_start, d_end, q_end, d_best, q_best, opt }
+        }
+        else
+        {
+            let profile = query_profile(&d_seq, &q_seq, VecType::Epu16, &f);
+            let ext_end = match ssw_word(&d_seq, &q_seq, go, ge, 0, &profile)
+            {
+                Err(_err)    => panic!("Overflow, input sequence is too long"),
+                Ok(res) => res,
+            };
+
+            let d_end = ext_end.pos.0 + 1;
+            let q_end = ext_end.pos.1 + 1;
+
+            let mut d_splited_rev = d_seq[0..d_end].to_vec();
+            let mut q_splited_rev = q_seq[0..q_end].to_vec();
+            d_splited_rev.reverse();
+            q_splited_rev.reverse();
+
+            let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, VecType::Epu16, &f);
+            let ext_start = ssw_word(&d_seq, &q_seq, go, ge, ext_end.var, &profile_rev).unwrap();
+
+            let d_start = d_end - ext_start.pos.0;
+            let q_start = q_end - ext_start.pos.1;
+
+            let d_sub = &d_seq[d_start-1..d_end];
+            let q_sub = &q_seq[q_start-1..q_end];
+
+            let (d_best_u8, q_best_u8) = banded_sw(&d_sub, &q_sub, go, ge, &f);
+
+            let d_best = String::from_utf8(d_best_u8).unwrap();
+            let q_best = String::from_utf8(q_best_u8).unwrap();
+
+            let opt = ext_end.var as u32;
+
+            AlignResult { d_id, q_id, d_start, q_start, d_end, q_end, d_best, q_best, opt }
+        }
+
     }
 }
 
