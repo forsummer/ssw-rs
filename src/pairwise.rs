@@ -268,12 +268,15 @@ mod sw_avx2
 
         let (bias, profile) = match profile
         {
-            Profile::Byte { bias, profile } => (M256Epu8::fill(*bias), profile),
+            Profile::Byte { bias, profile } => (*bias, profile),
             _ => panic!("Unacceptable profile"),
         };
 
+        let overflow_sign = u8::MAX - bias;
+
         let seg_num = (q.len() + 31) / 32;
         
+        let bias = M256Epu8::fill(bias);
         let mut f = M256Epu8::fill(0);
         let mut h_store = vec![M256Epu8::fill(0); seg_num];
         let mut e_store = vec![M256Epu8::fill(0); seg_num];
@@ -327,7 +330,7 @@ mod sw_avx2
 
                 let tmp = max.get_max();
 
-                if tmp == u8::MAX
+                if tmp == overflow_sign
                 {
                     is_overflow = is_overflow + 1;
                     if is_overflow > 1
@@ -414,11 +417,15 @@ mod sw_avx2
 
         let (bias, profile) = match profile
         {
-            Profile::Word { bias, profile } => (M256Epu16::fill(*bias), profile),
+            Profile::Word { bias, profile } => (*bias, profile),
             _ => panic!("Unacceptable profile"),
         };
         
+        let overflow_sign = u16::MAX - bias;
+
         let seg_num = (q.len() + 15) / 16;
+        let bias = M256Epu16::fill(bias);
+
         let mut f = M256Epu16::fill(0);
         let mut h_store = vec![M256Epu16::fill(0); seg_num];
         let mut e_store = vec![M256Epu16::fill(0); seg_num];
@@ -470,7 +477,7 @@ mod sw_avx2
                 h_buffer.iter().for_each(|h| max = max_epu16!(*h, max));
                 let tmp = max.get_max();
 
-                if tmp == u16::MAX
+                if tmp == overflow_sign
                 {
                     is_overflow = is_overflow + 1;
                     if is_overflow > 1

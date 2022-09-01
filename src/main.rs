@@ -15,7 +15,7 @@ use score::pam120;
 use score::blosum50;
 use score::blosum62;
 use pairwise::smith_waterman_avx2;
-use pairwise::smith_waterman_scalar;
+// use pairwise::smith_waterman_scalar;
 
 fn main()
 {
@@ -39,8 +39,8 @@ fn main()
             for q in q_set.iter()
             {
                 let tick = Instant::now();
-                // println!("{}", smith_waterman_avx2(d, q, go, ge, score));
-                println!("{}", smith_waterman_scalar(d, q, go as u32, ge as u32, score));
+                println!("{}", smith_waterman_avx2(d, q, go, ge, score));
+                // println!("{}", smith_waterman_scalar(d, q, go as u32, ge as u32, score));
                 println!("time-cost: {}s", tick.elapsed().as_secs_f64());
             }
         }
