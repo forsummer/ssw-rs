@@ -130,7 +130,7 @@ mod sw_avx2
                     .map_or(b'*', |r| *r);
                 seg.push(residue);
             }
-            *s = seg;
+            swap::<Vec<u8>>(s, &mut seg);
         }
 
         let profile_len = alphabet_d.iter().max().map(|item| *item as usize).unwrap() - 64;
@@ -585,7 +585,7 @@ mod sw_avx2
             let d_sub = &d_seq[d_start-1..d_end];
             let q_sub = &q_seq[q_start-1..q_end];
 
-            let (d_best_u8, q_best_u8) = banded_sw(&d_sub, &q_sub, go, ge, &f);
+            let (d_best_u8, q_best_u8) = banded_sw(d_sub, q_sub, go, ge, &f);
 
             let d_best = String::from_utf8(d_best_u8).unwrap();
             let q_best = String::from_utf8(q_best_u8).unwrap();
@@ -620,7 +620,7 @@ mod sw_avx2
             let d_sub = &d_seq[d_start-1..d_end];
             let q_sub = &q_seq[q_start-1..q_end];
 
-            let (d_best_u8, q_best_u8) = banded_sw(&d_sub, &q_sub, go, ge, &f);
+            let (d_best_u8, q_best_u8) = banded_sw(d_sub, q_sub, go, ge, &f);
 
             let d_best = String::from_utf8(d_best_u8).unwrap();
             let q_best = String::from_utf8(q_best_u8).unwrap();
@@ -636,99 +636,190 @@ mod sw_avx2
 #[allow(dead_code)]
 mod sw_scalar
 {
+    use std::mem::swap;
+
     use crate::load::Seq;
     use crate::pairwise::AlignEnd;
     use crate::pairwise::AlignResult;
 
-    fn sw_scalar<S>(d: &Vec<u8>, q: &Vec<u8>, go: u32, ge: u32, terminater: u32, score: &S) -> AlignEnd<u32>
+    fn sw_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, terminater: u32, score: &S) -> AlignEnd<u32>
     where
-        S: Fn(u8, u8) -> i16
+        S: Fn(u8, u8) -> i8
     {
-        let d_len = d.len();
+        // let d_len = d.len();
         let q_len = q.len();
 
         let mut left_f: u32 = 0;
         let mut left_h: u32 = 0;
         let mut prev_e: Vec<u32> = vec![0; q_len+1];
         let mut prev_h: Vec<u32> = vec![0; q_len+1];
+        let mut current_h = vec![0; q_len+1];
 
         let mut opt = AlignEnd { var: 0, pos: (0, 0) };
         if terminater == 0
         {
-            for i in 1..d_len+1
+            for (i, dr) in d.iter().enumerate()
             {
-                let mut current_h = vec![0; q_len+1];
-                for j in 1..q_len+1
-                {
-                    let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
-                    let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
+                let mut prev_h_iter_forward = *prev_h.first().unwrap();
 
-                    let pair = score(d[i-1], q[j-1]);
-                    
+                for (qr, (p_e, (p_h, c_h))) in q.iter()
+                    .zip(prev_e.iter_mut().skip(1)
+                    .zip(prev_h.iter_mut().skip(1)
+                    .zip(current_h.iter_mut().skip(1))))
+                {
+                    let e = max!(p_e.saturating_sub(ge), p_h.saturating_sub(go));
+                    let f = max!(left_f.saturating_sub(ge), left_h.saturating_sub(go));
+
+                    let pair = score(*dr, *qr);
                     let ext = match pair > 0
                     {
-                        true => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
-                        false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
+                        true  => prev_h_iter_forward.saturating_add(pair.unsigned_abs() as u32),
+                        false => prev_h_iter_forward.saturating_sub(pair.unsigned_abs() as u32),
                     };
-
                     let h = max!(ext, e, f);
 
+                    *c_h = h;
+                    *p_e = e;
                     left_f = f;
                     left_h = h;
-                    prev_e[j] = e;
-                    current_h[j] = h;
+                    prev_h_iter_forward = *p_h;
                 }
 
-                let h_max = *current_h.iter().max().unwrap();
-                if h_max > opt.var
+                let max = *current_h.iter().max().unwrap();
+                if max > opt.var
                 {
-                    let j = current_h.iter().position(|item| item==&h_max).unwrap();
-                    opt.var = h_max;
-                    opt.pos = (i, j);
+                    let j = current_h.iter().position(|item| *item==max).unwrap();
+                    opt.var = max;
+                    opt.pos = (i, j-1);
                 }
-                
-                prev_h = current_h;
+
+                swap::<Vec<u32>>(&mut prev_h, &mut current_h);
             }
+
+            // for i in 1..d_len+1
+            // {
+            //     for j in 1..q_len+1
+            //     {
+            //         assert!(d_len+1 >= i);
+            //         assert!(q_len+1 >= j);
+            //         let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
+            //         let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
+
+            //         let pair = score(d[i-1], q[j-1]);
+                    
+            //         let ext = match pair > 0
+            //         {
+            //             true => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
+            //             false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
+            //         };
+
+            //         let h = max!(ext, e, f);
+
+            //         left_f = f;
+            //         left_h = h;
+            //         prev_e[j] = e;
+            //         current_h[j] = h;
+            //     }
+
+            //     let h_max = *current_h.iter().max().unwrap();
+            //     if h_max > opt.var
+            //     {
+            //         let j = current_h.iter().position(|item| item==&h_max).unwrap();
+            //         opt.var = h_max;
+            //         opt.pos = (i, j);
+            //     }
+            //     swap::<Vec<u32>>(&mut prev_h, &mut current_h);
+            // }
         }
         else
         {
-            for i in 1..d_len+1
+            for (i, dr) in d.iter().enumerate()
             {
-                let mut current_h = vec![0; q_len+1];
-                for j in 1..q_len+1
-                {
-                    let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
-                    let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
+                let mut prev_h_iter_forward = *prev_h.first().unwrap();
 
-                    let pair = score(d[i-1], q[j-1]);
+                for (qr, (p_e, (p_h, c_h))) in q.iter()
+                    .zip(prev_e.iter_mut().skip(1)
+                    .zip(prev_h.iter_mut().skip(1)
+                    .zip(current_h.iter_mut().skip(1))))
+                {
+                    let e = max!(p_e.saturating_sub(ge), p_h.saturating_sub(go));
+                    let f = max!(left_f.saturating_sub(ge), left_h.saturating_sub(go));
+
+                    let pair = score(*dr, *qr);
                     let ext = match pair > 0
                     {
-                        true => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
-                        false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
+                        true  => prev_h_iter_forward.saturating_add(pair.unsigned_abs() as u32),
+                        false => prev_h_iter_forward.saturating_sub(pair.unsigned_abs() as u32),
                     };
                     let h = max!(ext, e, f);
 
-                    if h == terminater
-                    {
-                        opt.var = h;
-                        opt.pos = (i, j);
-                        break;
-                    }
-
+                    *c_h = h;
+                    *p_e = e;
                     left_f = f;
                     left_h = h;
-                    prev_e[j] = e;
-                    current_h[j] = h;
+                    prev_h_iter_forward = *p_h;
                 }
-                prev_h = current_h;
+
+                if current_h.contains(&terminater)
+                {
+                    let j = current_h.iter().position(|item| *item==terminater).unwrap();
+                    opt.var = terminater;
+                    opt.pos = (i, j-1);
+                    break;
+                }
+
+                swap::<Vec<u32>>(&mut prev_h, &mut current_h);
             }
+
+            // for i in 1..d_len+1
+            // {
+            //     for j in 1..q_len+1
+            //     {
+            //         assert!(d_len+1 >= i);
+            //         assert!(q_len+1 >= j);
+            //         let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
+            //         let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
+
+            //         let pair = score(d[i-1], q[j-1]);
+            //         let ext = match pair > 0
+            //         {
+            //             true => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
+            //             false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
+            //         };
+            //         let h = max!(ext, e, f);
+
+            //         if h == terminater
+            //         {
+            //             opt.var = h;
+            //             opt.pos = (i, j);
+            //             break;
+            //         }
+
+            //         left_f = f;
+            //         left_h = h;
+            //         prev_e[j] = e;
+            //         current_h[j] = h;
+            //     }
+
+            //     for h in current_h.iter().copied()
+            //     {
+            //         if h == terminater
+            //         {
+            //             let j = current_h.iter().position(|item| *item==terminater).unwrap();
+            //             opt.var = h;
+            //             opt.pos = (i, j);
+            //             break;
+            //         }
+            //     }
+            //     swap::<Vec<u32>>(&mut prev_h, &mut current_h);
+            // }
         }
         opt
     }
 
-    fn banded_sw_scalar<S>(d: &Vec<u8>, q: &Vec<u8>, go: u32, ge: u32, score: &S) -> (Vec<u8>, Vec<u8>)
+    fn banded_sw<S>(d: &[u8], q: &[u8], go: u32, ge: u32, score: &S) -> (Vec<u8>, Vec<u8>)
     where
-        S: Fn(u8, u8) -> i16
+        S: Fn(u8, u8) -> i8
     {
         let d_len = d.len();
         let q_len = q.len();
@@ -737,25 +828,34 @@ mod sw_scalar
         let mut left_h: u32 = 0;
         let mut prev_e: Vec<u32> = vec![0; q_len+1];
         let mut prev_h: Vec<u32> = vec![0; q_len+1];
+        let mut current_h = vec![0; q_len+1];
 
         let mut direction = vec![vec![0; q_len+1]; d_len+1];
-        for i in 1..d_len+1
-        {
-            let mut current_h = vec![0; q_len+1];
-            for j in 1..q_len+1
-            {
-                let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
-                let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
 
-                let pair = score(d[i-1], q[j-1]);
+        for (dr, dx) in d.iter()
+            .zip(direction.iter_mut().skip(1))
+        {
+
+            let mut prev_h_iter_forward = *prev_h.first().unwrap();
+
+            for (qr, (dxy, (p_e, (p_h, c_h)))) in q.iter()
+                .zip(dx.iter_mut().skip(1)
+                .zip(prev_e.iter_mut().skip(1)
+                .zip(prev_h.iter_mut().skip(1)
+                .zip(current_h.iter_mut().skip(1)))))
+            {
+                let e = max!(p_e.saturating_sub(ge), p_h.saturating_sub(go));
+                let f = max!(left_f.saturating_sub(ge), left_h.saturating_sub(go));
+
+                let pair = score(*dr, *qr);
                 let ext = match pair > 0
                 {
-                    true => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
-                    false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
+                    true  => prev_h_iter_forward.saturating_add(pair.unsigned_abs() as u32),
+                    false => prev_h_iter_forward.saturating_sub(pair.unsigned_abs() as u32),
                 };
                 let h = max!(ext, e, f);
 
-                direction[i][j] = match h
+                *dxy = match h
                 {
                     var1 if var1 == e   => 1,
                     var2 if var2 == f   => 2,
@@ -763,13 +863,47 @@ mod sw_scalar
                     _                        => 0,
                 };
 
+                *p_e = e;
+                *c_h = h;
                 left_f = f;
                 left_h = h;
-                prev_e[j] = e;
-                current_h[j] = h;
+                prev_h_iter_forward = *p_h;
             }
-            prev_h = current_h;
+            swap::<Vec<u32>>(&mut prev_h, &mut current_h);
         }
+
+        // for i in 1..d_len+1
+        // {
+        //     for j in 1..q_len+1
+        //     {
+        //         assert!(d_len+1 >= i);
+        //         assert!(q_len+1 >= j);
+        //         let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
+        //         let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
+
+        //         let pair = score(d[i-1], q[j-1]);
+        //         let ext = match pair > 0
+        //         {
+        //             true => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
+        //             false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
+        //         };
+        //         let h = max!(ext, e, f);
+
+        //         direction[i][j] = match h
+        //         {
+        //             var1 if var1 == e   => 1,
+        //             var2 if var2 == f   => 2,
+        //             var3 if var3 == ext => 3,
+        //             _                        => 0,
+        //         };
+
+        //         left_f = f;
+        //         left_h = h;
+        //         prev_e[j] = e;
+        //         current_h[j] = h;
+        //     }
+        //     swap::<Vec<u32>>(&mut prev_h, &mut current_h);
+        // }
 
         let mut d_best = Vec::new();
         let mut q_best = Vec::new();
@@ -778,6 +912,8 @@ mod sw_scalar
         let mut j = q_len;
         while direction[i][j] != 0
         {
+            assert!(d_len+1 >= i);
+            assert!(q_len+1 >= j);
             if direction[i][j] == 1
             {
                 d_best.insert(0, d[i-1]);
@@ -808,33 +944,34 @@ mod sw_scalar
 
     pub fn smith_waterman_scalar<S>(d: &Seq, q: &Seq, go: u32, ge: u32, score: S) -> AlignResult
     where
-        S: Fn(u8, u8) -> i16
+        S: Fn(u8, u8) -> i8
     {
+        let d_id = d.id.clone();
+        let q_id = q.id.clone();
         let d_seq = d.seq.to_ascii_uppercase();
         let q_seq = q.seq.to_ascii_uppercase();
-        let d_id = d.id.to_string();
-        let q_id = q.id.to_string();
         
         let ext_end = sw_scalar(&d_seq, &q_seq, go, ge, 0, &score);
-        let d_end = ext_end.pos.0;
-        let q_end = ext_end.pos.1;
+        let d_end = ext_end.pos.0 + 1;
+        let q_end = ext_end.pos.1 + 1;
+
         let mut d_splited_rev = d_seq[0..d_end].to_vec();
         let mut q_splited_rev = q_seq[0..q_end].to_vec();
-
         d_splited_rev.reverse();
         q_splited_rev.reverse();
 
         let ext_start = sw_scalar(&d_splited_rev, &q_splited_rev, go, ge, ext_end.var, &score);
-
         let d_start = d_end - ext_start.pos.0;
         let q_start = q_end - ext_start.pos.1;
 
-        let d_sub = d_seq[d_start..d_end].to_vec();
-        let q_sub = q_seq[q_start..q_end].to_vec();
+        let d_sub = &d_seq[d_start-1..d_end];
+        let q_sub = &q_seq[q_start-1..q_end];
 
-        let (d_best_u8, q_best_u8) = banded_sw_scalar(&d_sub, &q_sub, go, ge, &score);
+        let (d_best_u8, q_best_u8) = banded_sw(d_sub, q_sub, go, ge, &score);
+
         let d_best = String::from_utf8(d_best_u8).unwrap();
         let q_best = String::from_utf8(q_best_u8).unwrap();
+
         let opt = ext_end.var;
 
         AlignResult { d_id, q_id, d_start, q_start, d_end, q_end, d_best, q_best, opt }
