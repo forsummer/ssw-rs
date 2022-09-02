@@ -496,7 +496,7 @@ mod sw_avx2
                         if h.contains(opt_var)
                         {
                             opt_pos.1 = h.position(opt_var) * seg_num + j;
-                            break
+                            break;
                         }
                     }
                 }
@@ -527,6 +527,7 @@ mod sw_avx2
                 }
 
                 f.shift_left_bytex2();
+
                 let mut j = 0;
                 while f > h_buffer[j] - go
                 {
@@ -619,7 +620,7 @@ mod sw_avx2
             q_splited_rev.reverse();
 
             let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, VecType::Epu16, &f);
-            let ext_start = ssw_word(&d_seq, &q_seq, go, ge, ext_end.var, &profile_rev).unwrap();
+            let ext_start = ssw_word(&d_splited_rev, &q_splited_rev, go, ge, ext_end.var, &profile_rev).unwrap();
 
             let d_start = d_end - ext_start.pos.0;
             let q_start = q_end - ext_start.pos.1;
