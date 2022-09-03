@@ -191,7 +191,7 @@ mod sw_avx2
         let mut prev_h: Vec<u16> = vec![0; q_len+1];
         let mut current_h = vec![0; q_len+1];
 
-        let mut direction = vec![vec![0; q_len+1]; d_len+1];
+        let mut direction = vec![vec![0_u8; q_len+1]; d_len+1];
         for i in 1..d_len+1
         {
             for j in 1..q_len+1
@@ -838,7 +838,7 @@ mod sw_scalar
         let mut prev_h: Vec<u32> = vec![0; q_len+1];
         let mut current_h = vec![0; q_len+1];
 
-        let mut direction = vec![vec![0; q_len+1]; d_len+1];
+        let mut direction = vec![vec![0_u8; q_len+1]; d_len+1];
 
         for (dr, dx) in d.iter()
             .zip(direction.iter_mut().skip(1))
