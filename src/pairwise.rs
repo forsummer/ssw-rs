@@ -16,47 +16,76 @@ macro_rules! min
     };
 }
 
-#[derive(Debug)]
-enum AlignErr { OverFlow }
+pub enum AlignFlag { End, Path }
 
-#[derive(Debug, Clone)]
-struct AlignEnd<T: Sized + Copy> { var: T, pos: (usize, usize) }
+#[derive(Debug)]
+pub enum AlignErr { OverFlow }
+
+enum AlignEnd
+{
+    U8  { var: u8, pos: (usize, usize)  },
+    U16 { var: u16, pos: (usize, usize) },
+    U32 { var: u32, pos: (usize, usize) },
+}
 
 pub struct AlignResult
 {
-    d_id: String,
-    q_id: String,
-    d_start: usize,
-    q_start: usize,
-    d_end: usize,
-    q_end: usize,
-    d_best: String,
-    q_best: String,
-    opt: u32
+    pub d_id: String,
+    pub q_id: String,
+    pub d_start: Option<usize>,
+    pub q_start: Option<usize>,
+    pub d_end: usize,
+    pub q_end: usize,
+    pub d_best: Option<String>,
+    pub q_best: Option<String>,
+    pub opt: u32,
+    flag: AlignFlag
 }
 
 impl std::fmt::Display for AlignResult
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
-        let result = tabular::Table::new("{:<} {:<} {:<}")
-            .with_row(tabular::row!("d_id", ":", &self.d_id))
-            .with_row(tabular::row!("q_id", ":", &self.q_id))
-            .with_row(tabular::row!("opt", ":", self.opt));
+        let result = tabular::Table::new("{:<} {:<}")
+            .with_row(tabular::row!("d_name:", &self.d_id))
+            .with_row(tabular::row!("q_name:", &self.q_id));
 
-        let mut indication_line = String::with_capacity(self.d_best.len());
-        for (r1, r2) in self.d_best.chars().zip(self.q_best.chars())
+        if let AlignFlag::End = self.flag
         {
-            let identifier = if [r1, r2].contains(&'-') {' '} else if r1 == r2 {'|'} else {'*'};
-            indication_line.push(identifier);
+            let pos = tabular::Table::new("\n{:<} {:<} {:<} {:<} {:<} {:<}")
+                .with_row(tabular::row!("optimal_alignment_score:", self.opt,
+                    "d_end:", &self.d_end,
+                    "q_end:", &self.q_end));
+
+            return write!(f, "{}{}", result, pos)
         }
 
-        let sub_seq = tabular::Table::new("{:<} {:<} {:<} {:<} {:<}")
-            .with_row(tabular::row!("d_sub", ":", self.d_start, &self.d_best, self.d_end))
-            .with_row(tabular::row!("", "", "", indication_line, ""))
-            .with_row(tabular::row!("q_sub", ":", self.q_start, &self.q_best, self.q_end));
-        
-        write!(f, "{}{}", result, sub_seq)
+        if let AlignFlag::Path = self.flag
+        {
+            let pos = tabular::Table::new("\n{:<} {:<} {:<} {:<} {:<} {:<}\n")
+                .with_row(tabular::row!("optimal_alignment_score:", self.opt,
+                    "d_end:", &self.d_end,
+                    "q_end:", &self.q_end));
+
+            let d_best = self.d_best.clone().expect("Should contain d_best");
+            let q_best = self.q_best.clone().expect("Should contain q_best");
+            let d_start = self.d_start.expect("Should contain d_start");
+            let q_start = self.q_start.expect("Should contain q_start");
+            let mut sign_line = String::with_capacity(d_best.len());
+            for (r1, r2) in d_best.chars().zip(q_best.chars())
+            {
+                let sign = if [r1, r2].contains(&'-') {' '} else if r1 == r2 {'|'} else {'*'};
+                sign_line.push(sign);
+            }
+
+            let sub_seq = tabular::Table::new("{:<} {:<} {:<} {:<}")
+                .with_row(tabular::row!("d_sub:", &d_start, &d_best, &self.d_end))
+                .with_row(tabular::row!("", "", &sign_line, ""))
+                .with_row(tabular::row!("q_sub:", &q_start, &q_best, &self.q_end));
+            return write!(f, "{}{}{}", result, pos, sub_seq)
+        }
+
+        unreachable!()
     }
 }
 
@@ -65,23 +94,19 @@ mod sw_avx2
     use std::mem::swap;
 
     use crate::load::Seq;
-    use crate::avx::avx2::M256Epu8;
-    use crate::avx::avx2::max_epu8;
-    use crate::avx::avx2::M256Epu16;
-    use crate::avx::avx2::max_epu16;
-    use crate::pairwise::AlignEnd;
-    use crate::pairwise::AlignErr;
-    use crate::pairwise::AlignResult;
-
-    enum VecType { Epu8, Epu16 }
-
+    use crate::avx::avx2::{ M256Epu8, M256Epu16 };
+    use crate::avx::avx2::{ max_epu8, max_epu16 };
+    use crate::pairwise::{ AlignEnd, AlignErr, AlignFlag, AlignResult };
+    
     enum Profile
     {
         Byte { bias: u8,  profile: Vec<Vec<M256Epu8>>  },
         Word { bias: u16, profile: Vec<Vec<M256Epu16>> },
     }
+    
+    enum ProfileType { Epu8, Epu16 }
 
-    fn query_profile<S>(d: &[u8], q: &[u8], p: VecType, f: S) -> Profile
+    fn query_profile<S>(d: &[u8], q: &[u8], p: ProfileType, f: S) -> Profile
     where
         S: Fn(u8, u8) -> i8
     {
@@ -116,7 +141,7 @@ mod sw_avx2
             }
         };
 
-        let seg_len = if matches!(p, VecType::Epu8) { 32 } else { 16 };
+        let seg_len = if matches!(p, ProfileType::Epu8) { 32 } else { 16 };
         let seg_num = (q.len() + seg_len - 1) / seg_len;
 
         let mut seg_set = vec![Vec::new(); seg_num];
@@ -261,7 +286,7 @@ mod sw_avx2
         (d_best, q_best)
     }
 
-    fn ssw_byte(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u8, profile: &Profile) -> Result<AlignEnd<u8>, AlignErr>
+    fn ssw_byte(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u8, profile: &Profile) -> Result<AlignEnd, AlignErr>
     {
         let go = M256Epu8::fill(go);
         let ge = M256Epu8::fill(ge);
@@ -407,10 +432,10 @@ mod sw_avx2
                 swap::<Vec<M256Epu8>>(&mut h_store, &mut h_buffer);
             }
         }
-        Ok(AlignEnd { var: opt_var, pos: opt_pos })
+        Ok( AlignEnd::U8 { var: opt_var, pos: opt_pos } )
     }
 
-    fn ssw_word(d: &Vec<u8>, q: &Vec<u8>, go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd<u16>, AlignErr>
+    fn ssw_word(d: &Vec<u8>, q: &Vec<u8>, go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd, AlignErr>
     {
         let go = M256Epu16::fill(go as u16);
         let ge = M256Epu16::fill(ge as u16);
@@ -554,10 +579,10 @@ mod sw_avx2
                 swap::<Vec<M256Epu16>>(&mut h_store, &mut h_buffer);
             }
         }
-        Ok(AlignEnd { var: opt_var, pos: opt_pos })
+        Ok( AlignEnd::U16 { var: opt_var, pos: opt_pos } )
     }
 
-    pub fn smith_waterman_avx2<S>(d: &Seq, q:&Seq, go: u8, ge: u8, f: S) -> AlignResult
+    pub fn smith_waterman_avx2<S>(d: &Seq, q:&Seq, go: u8, ge: u8, flag: &AlignFlag, f: S) -> Result<AlignResult, AlignErr>
     where
         S: Fn(u8, u8) -> i8
     {
@@ -567,77 +592,96 @@ mod sw_avx2
         let d_seq = d.seq.to_ascii_uppercase();
         let q_seq = q.seq.to_ascii_uppercase();
 
-        let profile = query_profile(&d_seq, &q_seq, VecType::Epu8, &f);
-        let ext_end = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile)
+        let profile_u8 = query_profile(&d_seq, &q_seq, ProfileType::Epu8, &f);
+        let ext_end = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile_u8)
         {
-            Err(_err)    => None,
-            Ok(res)  => Some(res),
+            Ok(res) => res,
+            Err(AlignErr::OverFlow) => 
+            {
+                let profile_u16 = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f);
+                ssw_word(&d_seq, &q_seq, go, ge, 0, &profile_u16)?
+            }
         };
 
-        if let Some(res) = ext_end
+        if let AlignFlag::End = flag
         {
-            let d_end = res.pos.0 + 1;
-            let q_end = res.pos.1 + 1;
-
-            let mut d_splited_rev = d_seq[0..d_end].to_vec();
-            let mut q_splited_rev = q_seq[0..q_end].to_vec();
-            d_splited_rev.reverse();
-            q_splited_rev.reverse();
-
-            let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, VecType::Epu8, &f);
-            let ext_start = ssw_byte(&d_splited_rev, &q_splited_rev, go, ge, res.var, &profile_rev).unwrap();
-
-            let d_start = d_end - ext_start.pos.0;
-            let q_start = q_end - ext_start.pos.1;
-    
-            let d_sub = &d_seq[d_start-1..d_end];
-            let q_sub = &q_seq[q_start-1..q_end];
-
-            let (d_best_u8, q_best_u8) = banded_sw(d_sub, q_sub, go, ge, &f);
-
-            let d_best = String::from_utf8(d_best_u8).unwrap();
-            let q_best = String::from_utf8(q_best_u8).unwrap();
-            
-            let opt = res.var as u32;
-
-            AlignResult { d_id, q_id, d_start, q_start, d_end, q_end, d_best, q_best, opt }
-        }
-        else
-        {
-            let profile = query_profile(&d_seq, &q_seq, VecType::Epu16, &f);
-            let ext_end = match ssw_word(&d_seq, &q_seq, go, ge, 0, &profile)
+            if let AlignEnd::U8 { var, pos } = ext_end
             {
-                Err(_err)    => panic!("Overflow, input sequence is too long"),
-                Ok(res) => res,
-            };
+                let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
+                return Ok( AlignResult { d_id, q_id, d_start: None, q_start: None, d_end, q_end,
+                    d_best: None, q_best: None, opt, flag: AlignFlag::End } )
+            }
+            
+            if let AlignEnd::U16 { var, pos } = ext_end 
+            {
+                let (opt, (d_end, q_end)) = (var as u32, (pos.0, pos.1));
+                return Ok( AlignResult { d_id, q_id, d_start: None, q_start: None, d_end, q_end,
+                    d_best: None, q_best: None, opt, flag: AlignFlag::End } )
+            }
 
-            let d_end = ext_end.pos.0 + 1;
-            let q_end = ext_end.pos.1 + 1;
+            unreachable!()
+        }
+        
+        if let AlignFlag::Path = flag
+        {
+            if let AlignEnd::U8 { var, pos } = ext_end
+            {
+                let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
 
-            let mut d_splited_rev = d_seq[0..d_end].to_vec();
-            let mut q_splited_rev = q_seq[0..q_end].to_vec();
-            d_splited_rev.reverse();
-            q_splited_rev.reverse();
+                let mut d_splited_rev = d_seq[0..d_end].to_vec();
+                let mut q_splited_rev = q_seq[0..q_end].to_vec();
+                d_splited_rev.reverse();
+                q_splited_rev.reverse();
+                
+                let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu8, &f);
+                let (d_start, q_start) = match ssw_byte(&d_splited_rev, &q_splited_rev, go, ge, var, &profile_rev)?
+                {
+                    AlignEnd::U8 { pos, .. } => (d_end - pos.0, q_end - pos.1),
+                    _ => unreachable!(),
+                };
+                
+                let (d_best_u8, q_best_u8) = banded_sw(&d_seq[d_start-1..d_end], &q_seq[q_start-1..q_end], go, ge, &f);
+                let d_best = Some(String::from_utf8(d_best_u8).unwrap());
+                let q_best = Some(String::from_utf8(q_best_u8).unwrap());
 
-            let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, VecType::Epu16, &f);
-            let ext_start = ssw_word(&d_splited_rev, &q_splited_rev, go, ge, ext_end.var, &profile_rev).unwrap();
+                let d_start = Some(d_start);
+                let q_start = Some(q_start);
 
-            let d_start = d_end - ext_start.pos.0;
-            let q_start = q_end - ext_start.pos.1;
+                return Ok( AlignResult { d_id, q_id, d_start, q_start, d_end, q_end,
+                    d_best, q_best, opt, flag: AlignFlag::Path } )
+            }
+            
+            if let AlignEnd::U16 { var, pos } = ext_end
+            {
+                let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
 
-            let d_sub = &d_seq[d_start-1..d_end];
-            let q_sub = &q_seq[q_start-1..q_end];
+                let mut d_splited_rev = d_seq[0..d_end].to_vec();
+                let mut q_splited_rev = q_seq[0..q_end].to_vec();
+                d_splited_rev.reverse();
+                q_splited_rev.reverse();
 
-            let (d_best_u8, q_best_u8) = banded_sw(d_sub, q_sub, go, ge, &f);
+                let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu16, &f);
+                let (d_start, q_start) = match ssw_word(&d_splited_rev, &q_splited_rev, go, ge, var, &profile_rev)?
+                {
+                    AlignEnd::U16 { pos, .. } => (pos.0, pos.1),
+                    _ => unreachable!(),
+                };
+                
+                let (d_best_u8, q_best_u8) = banded_sw(&d_seq[d_start-1..d_end], &q_seq[q_start-1..q_end], go, ge, &f);
+                let d_best = Some(String::from_utf8(d_best_u8).unwrap());
+                let q_best = Some(String::from_utf8(q_best_u8).unwrap());
 
-            let d_best = String::from_utf8(d_best_u8).unwrap();
-            let q_best = String::from_utf8(q_best_u8).unwrap();
+                let d_start = Some(d_start);
+                let q_start = Some(q_start);
 
-            let opt = ext_end.var as u32;
+                return Ok( AlignResult { d_id, q_id, d_start, q_start, d_end, q_end,
+                    d_best, q_best, opt, flag: AlignFlag::Path } )
+            }
 
-            AlignResult { d_id, q_id, d_start, q_start, d_end, q_end, d_best, q_best, opt }
+            unreachable!()
         }
 
+        unreachable!()
     }
 }
 
@@ -647,14 +691,12 @@ mod sw_scalar
     use std::mem::swap;
 
     use crate::load::Seq;
-    use crate::pairwise::AlignEnd;
-    use crate::pairwise::AlignResult;
+    use crate::pairwise::{ AlignEnd, AlignErr, AlignFlag, AlignResult };
 
-    fn sw_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, terminater: u32, score: &S) -> AlignEnd<u32>
+    fn sw_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, terminater: u32, score: &S) -> Result<AlignEnd, AlignErr>
     where
         S: Fn(u8, u8) -> i8
     {
-        // let d_len = d.len();
         let q_len = q.len();
 
         let mut left_f: u32 = 0;
@@ -663,7 +705,8 @@ mod sw_scalar
         let mut prev_h: Vec<u32> = vec![0; q_len+1];
         let mut current_h = vec![0; q_len+1];
 
-        let mut opt = AlignEnd { var: 0, pos: (0, 0) };
+        let mut opt_var = 0;
+        let mut opt_pos = (0, 0);
         if terminater == 0
         {
             for (i, dr) in d.iter().enumerate()
@@ -693,51 +736,21 @@ mod sw_scalar
                     prev_h_iter_forward = *p_h;
                 }
 
+                if current_h.contains(&u32::MAX)
+                {
+                    Err(AlignErr::OverFlow)?
+                }
+
                 let max = *current_h.iter().max().unwrap();
-                if max > opt.var
+                if max > opt_var
                 {
                     let j = current_h.iter().position(|item| *item==max).unwrap();
-                    opt.var = max;
-                    opt.pos = (i, j-1);
+                    opt_var = max;
+                    opt_pos = (i, j-1);
                 }
 
                 swap::<Vec<u32>>(&mut prev_h, &mut current_h);
             }
-
-            // for i in 1..d_len+1
-            // {
-            //     for j in 1..q_len+1
-            //     {
-            //         assert!(d_len+1 >= i);
-            //         assert!(q_len+1 >= j);
-            //         let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
-            //         let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
-
-            //         let pair = score(d[i-1], q[j-1]);
-                    
-            //         let ext = match pair > 0
-            //         {
-            //             true => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
-            //             false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
-            //         };
-
-            //         let h = max!(ext, e, f);
-
-            //         left_f = f;
-            //         left_h = h;
-            //         prev_e[j] = e;
-            //         current_h[j] = h;
-            //     }
-
-            //     let h_max = *current_h.iter().max().unwrap();
-            //     if h_max > opt.var
-            //     {
-            //         let j = current_h.iter().position(|item| item==&h_max).unwrap();
-            //         opt.var = h_max;
-            //         opt.pos = (i, j);
-            //     }
-            //     swap::<Vec<u32>>(&mut prev_h, &mut current_h);
-            // }
         }
         else
         {
@@ -771,58 +784,15 @@ mod sw_scalar
                 if current_h.contains(&terminater)
                 {
                     let j = current_h.iter().position(|item| *item==terminater).unwrap();
-                    opt.var = terminater;
-                    opt.pos = (i, j-1);
+                    opt_var = terminater;
+                    opt_pos = (i, j-1);
                     break;
                 }
 
                 swap::<Vec<u32>>(&mut prev_h, &mut current_h);
             }
-
-            // for i in 1..d_len+1
-            // {
-            //     for j in 1..q_len+1
-            //     {
-            //         assert!(d_len+1 >= i);
-            //         assert!(q_len+1 >= j);
-            //         let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
-            //         let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
-
-            //         let pair = score(d[i-1], q[j-1]);
-            //         let ext = match pair > 0
-            //         {
-            //             true => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
-            //             false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
-            //         };
-            //         let h = max!(ext, e, f);
-
-            //         if h == terminater
-            //         {
-            //             opt.var = h;
-            //             opt.pos = (i, j);
-            //             break;
-            //         }
-
-            //         left_f = f;
-            //         left_h = h;
-            //         prev_e[j] = e;
-            //         current_h[j] = h;
-            //     }
-
-            //     for h in current_h.iter().copied()
-            //     {
-            //         if h == terminater
-            //         {
-            //             let j = current_h.iter().position(|item| *item==terminater).unwrap();
-            //             opt.var = h;
-            //             opt.pos = (i, j);
-            //             break;
-            //         }
-            //     }
-            //     swap::<Vec<u32>>(&mut prev_h, &mut current_h);
-            // }
         }
-        opt
+        Ok( AlignEnd::U32 { var: opt_var, pos: opt_pos } )
     }
 
     fn banded_sw<S>(d: &[u8], q: &[u8], go: u32, ge: u32, score: &S) -> (Vec<u8>, Vec<u8>)
@@ -880,39 +850,6 @@ mod sw_scalar
             swap::<Vec<u32>>(&mut prev_h, &mut current_h);
         }
 
-        // for i in 1..d_len+1
-        // {
-        //     for j in 1..q_len+1
-        //     {
-        //         assert!(d_len+1 >= i);
-        //         assert!(q_len+1 >= j);
-        //         let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
-        //         let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
-
-        //         let pair = score(d[i-1], q[j-1]);
-        //         let ext = match pair > 0
-        //         {
-        //             true => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
-        //             false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
-        //         };
-        //         let h = max!(ext, e, f);
-
-        //         direction[i][j] = match h
-        //         {
-        //             var1 if var1 == e   => 1,
-        //             var2 if var2 == f   => 2,
-        //             var3 if var3 == ext => 3,
-        //             _                        => 0,
-        //         };
-
-        //         left_f = f;
-        //         left_h = h;
-        //         prev_e[j] = e;
-        //         current_h[j] = h;
-        //     }
-        //     swap::<Vec<u32>>(&mut prev_h, &mut current_h);
-        // }
-
         let mut d_best = Vec::new();
         let mut q_best = Vec::new();
 
@@ -950,7 +887,7 @@ mod sw_scalar
         (d_best, q_best)
     }
 
-    pub fn smith_waterman_scalar<S>(d: &Seq, q: &Seq, go: u32, ge: u32, score: S) -> AlignResult
+    pub fn smith_waterman_scalar<S>(d: &Seq, q: &Seq, go: u32, ge: u32, flag: AlignFlag, score: S) -> Result<AlignResult, AlignErr>
     where
         S: Fn(u8, u8) -> i8
     {
@@ -959,30 +896,47 @@ mod sw_scalar
         let d_seq = d.seq.to_ascii_uppercase();
         let q_seq = q.seq.to_ascii_uppercase();
         
-        let ext_end = sw_scalar(&d_seq, &q_seq, go, ge, 0, &score);
-        let d_end = ext_end.pos.0 + 1;
-        let q_end = ext_end.pos.1 + 1;
+        let (opt, (d_end, q_end)) = match sw_scalar(&d_seq, &q_seq, go, ge, 0, &score)?
+        {
+            AlignEnd::U32 { var, pos } => (var, (pos.0+1, pos.1+1)),
+            _ => unreachable!(),
+        };
 
-        let mut d_splited_rev = d_seq[0..d_end].to_vec();
-        let mut q_splited_rev = q_seq[0..q_end].to_vec();
-        d_splited_rev.reverse();
-        q_splited_rev.reverse();
+        if let AlignFlag::End = flag
+        {
+            return Ok ( AlignResult { d_id, q_id, d_start: None, q_start: None, d_end, q_end,
+                d_best: None, q_best: None, opt, flag: AlignFlag::End } )
+        }
 
-        let ext_start = sw_scalar(&d_splited_rev, &q_splited_rev, go, ge, ext_end.var, &score);
-        let d_start = d_end - ext_start.pos.0;
-        let q_start = q_end - ext_start.pos.1;
+        if let AlignFlag::Path = flag
+        {
+            let mut d_splited_rev = d_seq[0..d_end].to_vec();
+            let mut q_splited_rev = q_seq[0..q_end].to_vec();
+            d_splited_rev.reverse();
+            q_splited_rev.reverse();
 
-        let d_sub = &d_seq[d_start-1..d_end];
-        let q_sub = &q_seq[q_start-1..q_end];
+            let (d_start, q_start) = match sw_scalar(&d_splited_rev, &q_splited_rev, go, ge, opt, &score)?
+            {
+                AlignEnd::U32 { pos, .. } => (pos.0, pos.1),
+                _ => unreachable!(),
+            };
 
-        let (d_best_u8, q_best_u8) = banded_sw(d_sub, q_sub, go, ge, &score);
+            let d_sub = &d_seq[d_start-1..d_end];
+            let q_sub = &q_seq[q_start-1..q_end];
 
-        let d_best = String::from_utf8(d_best_u8).unwrap();
-        let q_best = String::from_utf8(q_best_u8).unwrap();
+            let (d_best_u8, q_best_u8) = banded_sw(d_sub, q_sub, go, ge, &score);
 
-        let opt = ext_end.var;
+            let d_best = Some(String::from_utf8(d_best_u8).unwrap());
+            let q_best = Some(String::from_utf8(q_best_u8).unwrap());
 
-        AlignResult { d_id, q_id, d_start, q_start, d_end, q_end, d_best, q_best, opt }
+            let d_start = Some(d_start);
+            let q_start = Some(q_start);
+
+            return Ok ( AlignResult { d_id, q_id, d_start, q_start, d_end, q_end,
+                d_best, q_best, opt, flag: AlignFlag::Path } )
+        }
+
+        unreachable!()
     }
 }
 

@@ -1,8 +1,10 @@
-use clap::Parser;
-use clap::ValueEnum;
+use clap::{ Parser, ValueEnum };
 
 #[derive(ValueEnum, Clone)]
-pub enum Weight { Blosum50, Blosum62, Pam120  }
+pub enum Weight { Pam120, Blosum50, Blosum62 }
+
+// #[derive(ValueEnum, Clone)]
+// pub enum Flag { End, Path }
 
 #[derive(Parser)]
 #[clap(version = "0.1")]
@@ -38,11 +40,14 @@ pub struct CliArgs
     #[clap(help = "Performing protein sequence alignment")]
     pub is_protein: bool,
 
+    #[clap(name = "print-path", long, short = 'c', display_order = 6)]
+    #[clap(help = "Return optimal alignment path")]
+    pub print_path: bool,
+
     #[clap(value_enum)]
-    #[clap(name = "weight", long = "weight", short = 'w', display_order = 6)]
+    #[clap(name = "weight", long, short = 'w', display_order = 7)]
     #[clap(conflicts_with_all = &["miss", "match"])]
     #[clap(default_value_t = Weight::Blosum62)]
-    // #[clap(help = "blosum50 | blosum62 | pam120")]
     pub weight: Weight,
 
     #[clap(name = "db")]
