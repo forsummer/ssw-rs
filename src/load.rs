@@ -1,11 +1,10 @@
-use std::path::Path;
 use needletail::parse_fastx_file;
 
 pub struct Seq { pub id: String, pub seq: Vec<u8> }
 
-pub fn load_fastx<P>(path: P) -> Vec<Seq>
+pub fn fastx_parser<P>(path: P) -> Vec<Seq>
 where
-    P: AsRef<Path>
+    P: AsRef<std::path::Path>
 {
     let mut reader = parse_fastx_file(path)
         .map_or_else(|err| panic!("{}", err.msg), |reader| reader);
