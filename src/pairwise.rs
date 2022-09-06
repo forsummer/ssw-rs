@@ -52,7 +52,7 @@ impl std::fmt::Display for AlignResult
 
         if let AlignFlag::End = self.flag
         {
-            let pos = tabular::Table::new("\n{:<} {:<} {:<} {:<} {:<} {:<}")
+            let pos = tabular::Table::new("\n{:<} {:<}, {:<} {:<}, {:<} {:<}")
                 .with_row(tabular::row!("optimal_alignment_score:", self.opt,
                     "d_end:", &self.d_end,
                     "q_end:", &self.q_end));
@@ -62,7 +62,7 @@ impl std::fmt::Display for AlignResult
 
         if let AlignFlag::Path = self.flag
         {
-            let pos = tabular::Table::new("\n{:<} {:<} {:<} {:<} {:<} {:<}\n")
+            let pos = tabular::Table::new("\n{:<} {:<}, {:<} {:<}, {:<} {:<}\n")
                 .with_row(tabular::row!("optimal_alignment_score:", self.opt,
                     "d_end:", &self.d_end,
                     "q_end:", &self.q_end));
@@ -79,9 +79,9 @@ impl std::fmt::Display for AlignResult
             }
 
             let sub_seq = tabular::Table::new("{:<} {:<} {:<} {:<}")
-                .with_row(tabular::row!("d_sub:", &d_start, &d_best, &self.d_end))
+                .with_row(tabular::row!("d_bese:", &d_start, &d_best, &self.d_end))
                 .with_row(tabular::row!("", "", &sign_line, ""))
-                .with_row(tabular::row!("q_sub:", &q_start, &q_best, &self.q_end));
+                .with_row(tabular::row!("q_best:", &q_start, &q_best, &self.q_end));
             return write!(f, "{}{}{}", result, pos, sub_seq)
         }
 
