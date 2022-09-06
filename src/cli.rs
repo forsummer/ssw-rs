@@ -3,9 +3,6 @@ use clap::{ Parser, ValueEnum };
 #[derive(ValueEnum, Clone)]
 pub enum Weight { Pam120, Blosum50, Blosum62 }
 
-// #[derive(ValueEnum, Clone)]
-// pub enum Flag { End, Path }
-
 #[derive(Parser)]
 #[clap(version = "0.1")]
 #[clap(about = "Alignment nucleotide seq by smith-waterman algorithm")]
