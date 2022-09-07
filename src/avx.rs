@@ -1,11 +1,8 @@
 pub mod avx2
 {    
-    use std::ops::Add;
-    use std::ops::Sub;
-    use std::ops::Index;
     use std::fmt::Debug;
-    use std::mem::size_of;
-    use std::mem::transmute;
+    use std::ops::{ Add, Sub, Index };
+    use std::mem::{ size_of, transmute };
     use std::arch::x86_64::__m256i;
     use std::arch::x86_64::_mm256_set_epi8;
     use std::arch::x86_64::_mm256_max_epu8;
