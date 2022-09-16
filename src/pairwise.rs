@@ -362,18 +362,17 @@ mod sw_avx2
             _ => panic!("Unacceptable profile"),
         };
 
-        let overflow_sign = u8::MAX - bias;
+        let overflow_threshold = u8::MAX.saturating_sub(bias);
 
         let seg_num = (q.len() + 31) / 32;
-        
         let bias = M256Epu8::fill(bias);
         let mut f = M256Epu8::fill(0);
-        let mut h_store = vec![M256Epu8::fill(0); seg_num];
         let mut e_store = vec![M256Epu8::fill(0); seg_num];
+        let mut h_store = vec![M256Epu8::fill(0); seg_num];
         let mut h_buffer = vec![M256Epu8::fill(0); seg_num];
 
-        let mut opt_var = 0;
-        let mut opt_pos = (0, 0);
+        let mut opt = 0;
+        let mut pos = (0, 0);
         let mut max = M256Epu8::fill(0);
         let mut is_overflow = 0;
 
@@ -386,23 +385,19 @@ mod sw_avx2
                 let mut prev_h = *h_store.last().unwrap();
                 prev_h.shift_left_byte();
 
-                for (e_s, (h_buf, (h_s, score))) in e_store
-                    .iter_mut()
-                    .zip(h_buffer.iter_mut()
-                    .zip(h_store.iter_mut()
-                    .zip(profile[(*r - 65) as usize].iter())))
+                for j in 0..seg_num
                 {
-                    let h = max_epu8!(prev_h + (*score) - bias, *e_s);
-                    let e = max_epu8!(h - go, *e_s - ge);
+                    let score = profile[(*r - 65) as usize][j];
+                    let h = max_epu8!(prev_h + score - bias, e_store[j]);
+                    let e = max_epu8!(h - go, e_store[j] - ge);
                     f = max_epu8!(h - go, f - ge);
 
-                    *e_s = e;
-                    *h_buf = h;
-                    swap::<M256Epu8>(&mut prev_h, h_s);
+                    e_store[j]  = e;
+                    h_buffer[j] = h;
+                    prev_h = h_store[j];
                 }
 
                 f.shift_left_byte();
-
                 let mut j = 0;
                 while f > h_buffer[j] - go
                 {
@@ -417,28 +412,31 @@ mod sw_avx2
                 }
 
                 h_buffer.iter().for_each(|h| max = max_epu8!(max, *h));
-
                 let tmp = max.get_max();
 
-                if tmp == overflow_sign
+                if tmp == overflow_threshold
                 {
                     is_overflow = is_overflow + 1;
                     if is_overflow > 1
                     {
-                        Err(AlignErr::OverFlow)?
+                        Err(AlignErr::OverFlow
+                        {
+                            file: file!().to_string(),
+                            line: line!() as usize,
+                            msg: "Score out of u8 range".to_string()
+                        })?
                     }
                 }
 
-                if tmp > opt_var
+                if tmp > opt
                 {
-                    opt_var = tmp;
-                    opt_pos.0 = i;
-                    
+                    opt = tmp;
                     for (j, h) in h_buffer.iter().enumerate()
                     {
-                        if h.contains(opt_var)
+                        if h.contains(opt)
                         {
-                            opt_pos.1 = h.position(opt_var) * seg_num + j;
+                            pos.0 = i;
+                            pos.1 = h.position(opt) * seg_num + j;
                             break;
                         }
                     }
@@ -448,35 +446,31 @@ mod sw_avx2
         }
         else
         {
-            'outer: for (i, r) in d.iter().enumerate()
+            'outer: for (i, r) in d.iter().copied().enumerate()
             {
                 f.zero_out();
-
                 let mut prev_h = *h_store.last().unwrap();
                 prev_h.shift_left_byte();
-                
-                for (e_s, (h_buf, (h_s, score))) in e_store.iter_mut()
-                    .zip(h_buffer.iter_mut()
-                    .zip(h_store.iter_mut()
-                    .zip(profile[(*r - 65) as usize].iter())))
-                {
-                    let h = max_epu8!(prev_h + (*score) - bias, *e_s);
-                    let e = max_epu8!(h - go, *e_s - ge);
-                    f = max_epu8!(h - go, f - ge);
 
-                    *e_s = e;
-                    *h_buf = h;
-                    swap::<M256Epu8>(&mut prev_h, h_s);
+                for j in 0..seg_num
+                {
+                    let score = profile[(r - 65) as usize][j];
+                    let h = max_epu8!(prev_h + score - bias, e_store[j]);
+                    let e = max_epu8!(e_store[j] - ge, h - go);
+                    f = max_epu8!(f - ge, h - go);
+
+                    e_store[j] = e;
+                    h_buffer[j] = h;
+                    prev_h = h_store[j];
                 }
 
                 f.shift_left_byte();
-
                 let mut j = 0;
                 while f > h_buffer[j] - go
                 {
                     h_buffer[j] = max_epu8!(f, h_buffer[j]);
                     f = f - ge;
-
+    
                     if j+1 >= seg_num
                     {
                         f.shift_left_byte();
@@ -488,19 +482,173 @@ mod sw_avx2
                 {
                     if h.contains(terminater)
                     {
-                        opt_pos.0 = i;
-                        opt_pos.1 = h.position(terminater) * seg_num + j;
-                        opt_var = terminater;
+                        opt = terminater;
+                        pos.0 = i;
+                        pos.1 = h.position(opt) * seg_num + j;
                         break 'outer;
                     }
                 }
                 swap::<Vec<M256Epu8>>(&mut h_store, &mut h_buffer);
             }
         }
-        Ok( AlignEnd::U8 { var: opt_var, pos: opt_pos } )
+        Ok(AlignEnd::U8 { var: opt, pos })
     }
 
-    fn ssw_word(d: &Vec<u8>, q: &Vec<u8>, go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd, AlignErr>
+    // fn ssw_byte(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u8, profile: &Profile) -> Result<AlignEnd, AlignErr>
+    // {
+        // let go = M256Epu8::fill(go);
+        // let ge = M256Epu8::fill(ge);
+// 
+        // let (bias, profile) = match profile
+        // {
+            // Profile::Byte { bias, profile } => (*bias, profile),
+            // _ => panic!("Unacceptable profile"),
+        // };
+// 
+        // let overflow_sign = u8::MAX - bias;
+// 
+        // let seg_num = (q.len() + 31) / 32;
+        // let bias = M256Epu8::fill(bias);
+// 
+        // let mut f = M256Epu8::fill(0);
+        // let mut h_store = vec![M256Epu8::fill(0); seg_num];
+        // let mut e_store = vec![M256Epu8::fill(0); seg_num];
+        // let mut h_buffer = vec![M256Epu8::fill(0); seg_num];
+// 
+        // let mut opt_var = 0;
+        // let mut opt_pos = (0, 0);
+        // let mut max = M256Epu8::fill(0);
+        // let mut is_overflow = 0;
+// 
+        // if terminater == 0
+        // {
+            // for (i, r) in d.iter().enumerate()
+            // {
+                // f.zero_out();
+// 
+                // let mut prev_h = *h_store.last().unwrap();
+                // prev_h.shift_left_byte();
+// 
+                // for (e_s, (h_buf, (h_s, score))) in e_store
+                    // .iter_mut()
+                    // .zip(h_buffer.iter_mut()
+                    // .zip(h_store.iter_mut()
+                    // .zip(profile[(*r - 65) as usize].iter())))
+                // {
+                    // let h = max_epu8!(prev_h + (*score) - bias, *e_s);
+                    // let e = max_epu8!(h - go, *e_s - ge);
+                    // f = max_epu8!(h - go, f - ge);
+// 
+                    // *e_s = e;
+                    // *h_buf = h;
+                    // swap::<M256Epu8>(&mut prev_h, h_s);
+                // }
+// 
+                // f.shift_left_byte();
+// 
+                // let mut j = 0;
+                // while f > h_buffer[j] - go
+                // {
+                    // h_buffer[j] = max_epu8!(f, h_buffer[j]);
+                    // f = f - ge;
+// 
+                    // if j+1 >= seg_num
+                    // {
+                        // f.shift_left_byte();
+                        // j = 0;
+                    // }
+                // }
+// 
+                // h_buffer.iter().for_each(|h| max = max_epu8!(max, *h));
+                // let tmp = max.get_max();
+// 
+                // if tmp == overflow_sign
+                // {
+                    // is_overflow = is_overflow + 1;
+                    // if is_overflow > 1
+                    // {
+                        // Err(AlignErr::OverFlow
+                        // {
+                            // file: file!().to_string(),
+                            // line: line!() as usize,
+                            // msg: "Score out of u8 range".to_string()
+                        // } )?
+                    // }
+                // }
+// 
+                // if tmp > opt_var
+                // {
+                    // opt_var = tmp;
+                    // opt_pos.0 = i;
+                    // 
+                    // for (j, h) in h_buffer.iter().enumerate()
+                    // {
+                        // if h.contains(opt_var)
+                        // {
+                            // opt_pos.1 = h.position(opt_var) * seg_num + j;
+                            // break;
+                        // }
+                    // }
+                // }
+                // swap::<Vec<M256Epu8>>(&mut h_store, &mut h_buffer);
+            // }
+        // }
+        // else
+        // {
+            // 'outer: for (i, r) in d.iter().enumerate()
+            // {
+                // f.zero_out();
+// 
+                // let mut prev_h = *h_store.last().unwrap();
+                // prev_h.shift_left_byte();
+                // 
+                // for (e_s, (h_buf, (h_s, score))) in e_store
+                    // .iter_mut()
+                    // .zip(h_buffer.iter_mut()
+                    // .zip(h_store.iter_mut()
+                    // .zip(profile[(*r - 65) as usize].iter())))
+                // {
+                    // let h = max_epu8!(prev_h + (*score) - bias, *e_s);
+                    // let e = max_epu8!(h - go, *e_s - ge);
+                    // f = max_epu8!(h - go, f - ge);
+// 
+                    // *e_s = e;
+                    // *h_buf = h;
+                    // swap::<M256Epu8>(&mut prev_h, h_s);
+                // }
+// 
+                // f.shift_left_byte();
+// 
+                // let mut j = 0;
+                // while f > h_buffer[j] - go
+                // {
+                    // h_buffer[j] = max_epu8!(f, h_buffer[j]);
+                    // f = f - ge;
+// 
+                    // if j+1 >= seg_num
+                    // {
+                        // f.shift_left_byte();
+                        // j = 0;
+                    // }
+                // }
+// 
+                // for (j, h) in h_buffer.iter().enumerate()
+                // {
+                    // if h.contains(terminater)
+                    // {
+                        // opt_pos.0 = i;
+                        // opt_pos.1 = h.position(terminater) * seg_num + j;
+                        // opt_var = terminater;
+                        // break 'outer;
+                    // }
+                // }
+                // swap::<Vec<M256Epu8>>(&mut h_store, &mut h_buffer);
+            // }
+        // }
+        // Ok( AlignEnd::U8 { var: opt_var, pos: opt_pos } )
+    // }
+
+    fn ssw_word(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd, AlignErr>
     {
         let go = M256Epu16::fill(go as u16);
         let ge = M256Epu16::fill(ge as u16);
