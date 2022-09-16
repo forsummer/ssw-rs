@@ -18,14 +18,49 @@ macro_rules! min
 
 pub enum AlignFlag { End, Path }
 
-#[derive(Debug)]
-pub enum AlignErr { OverFlow }
-
 enum AlignEnd
 {
-    U8  { var: u8, pos: (usize, usize)  },
+    U8  { var: u8,  pos: (usize, usize) },
     U16 { var: u16, pos: (usize, usize) },
     U32 { var: u32, pos: (usize, usize) },
+}
+
+pub enum AlignErr
+{
+    OverFlow    { file: String, line: usize, msg: String },
+    IllegalChar { file: String, line: usize, msg: String },
+}
+
+impl std::fmt::Debug for AlignErr
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        let (file, line, msg) = match self
+        {
+            AlignErr::OverFlow    { file, line, msg } => (file, line, msg),
+            AlignErr::IllegalChar { file, line, msg } => (file, line, msg),
+        };
+
+        f.debug_struct("Error")
+            .field("file", file)
+            .field("line", line)
+            .field("msg", msg)
+            .finish()
+    }
+}
+
+impl std::fmt::Display for AlignErr
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        let (file, line, msg) = match self
+        {
+            AlignErr::OverFlow { file, line, msg }    => (file, line, msg),
+            AlignErr::IllegalChar { file, line, msg } => (file, line, msg),
+        };
+
+        write!(f, "error: {} in {}, {}", msg, file, line)
+    }
 }
 
 pub struct AlignResult
@@ -36,8 +71,8 @@ pub struct AlignResult
     pub q_start: Option<usize>,
     pub d_end: usize,
     pub q_end: usize,
-    pub d_best: Option<String>,
-    pub q_best: Option<String>,
+    pub d_best: Option<Vec<u8>>,
+    pub q_best: Option<Vec<u8>>,
     pub opt: u32,
     flag: AlignFlag
 }
@@ -46,43 +81,65 @@ impl std::fmt::Display for AlignResult
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
-        let result = tabular::Table::new("{:<} {:<}")
+        let seq_name = tabular::Table::new("{:<} {:<}")
             .with_row(tabular::row!("d_name:", &self.d_id))
             .with_row(tabular::row!("q_name:", &self.q_id));
 
         if let AlignFlag::End = self.flag
         {
-            let pos = tabular::Table::new("\n{:<} {:<}, {:<} {:<}, {:<} {:<}")
-                .with_row(tabular::row!("optimal_alignment_score:", self.opt,
-                    "d_end:", &self.d_end,
-                    "q_end:", &self.q_end));
-
-            return write!(f, "{}{}", result, pos)
+            let align_res = tabular::Table::new("\n{:<} {:<}, {:<} {:<}, {:<} {:<}")
+                .with_row(tabular::row!(
+                    "optimal_alignment_score:", self.opt,
+                    "d_end:", self.d_end,
+                    "q_end:", self.q_end));
+            return write!(f, "{}{}", seq_name, align_res)
         }
 
         if let AlignFlag::Path = self.flag
         {
-            let pos = tabular::Table::new("\n{:<} {:<}, {:<} {:<}, {:<} {:<}\n")
-                .with_row(tabular::row!("optimal_alignment_score:", self.opt,
-                    "d_end:", &self.d_end,
-                    "q_end:", &self.q_end));
+            let align_res = tabular::Table::new("\n{:<} {:<}, {:<} {:<}, {:<} {:<}, {:<} {:<}, {:<} {:<}\n")
+                .with_row(tabular::row!(
+                    "optimal_alignment_score:", self.opt,
+                    "d_start", self.d_start.expect("Should contain d_best start position"),
+                    "d_end:", self.d_end,
+                    "q_start", self.q_start.expect("Should contain q_best start position"),
+                    "q_end:", self.q_end));
+            
+            let d_best = self.d_best.as_ref().expect("Should contain d_best");
+            let q_best = self.q_best.as_ref().expect("Should contain q_best");
 
-            let d_best = self.d_best.clone().expect("Should contain d_best");
-            let q_best = self.q_best.clone().expect("Should contain q_best");
-            let d_start = self.d_start.expect("Should contain d_start");
-            let q_start = self.q_start.expect("Should contain q_start");
-            let mut sign_line = String::with_capacity(d_best.len());
-            for (r1, r2) in d_best.chars().zip(q_best.chars())
+            let mut sign = Vec::new();
+            for (r1, r2) in d_best.iter().zip(q_best.iter())
             {
-                let sign = if [r1, r2].contains(&'-') {' '} else if r1 == r2 {'|'} else {'*'};
-                sign_line.push(sign);
+                let s = if [r1, r2].contains(&&(b'-')) {b' '} else if r1 == r2 {b'|'} else {b'*'};
+                sign.push(s);
+            }
+            
+            let seg_len = 60;
+
+            let mut d_seg_start = self.d_start.unwrap();
+            let mut q_seg_start = self.q_start.unwrap();
+            let mut best = tabular::Table::new("{:<} {:<} {:<} {:<}");
+            for (d, (s, q)) in d_best.chunks(seg_len)
+                .zip(sign.chunks(seg_len)
+                .zip(q_best.chunks(seg_len)))
+            {
+                let d_gap_num = d.iter().filter(|x| **x == b'-').count();
+                let q_gap_num = q.iter().filter(|x| **x == b'-').count();
+
+                let d_seg_end = d_seg_start + d.len() - d_gap_num;
+                let q_seg_end = q_seg_start + q.len() - q_gap_num;
+
+                best.add_row(tabular::row!("d_best:", d_seg_start, String::from_utf8(d.to_vec()).unwrap(), d_seg_end-1))
+                    .add_row(tabular::row!("", "", String::from_utf8(s.to_vec()).unwrap(), ""))
+                    .add_row(tabular::row!("q_best:", q_seg_start, String::from_utf8(q.to_vec()).unwrap(), q_seg_end-1))
+                    .add_row(tabular::row!("", "", "", ""));
+
+                d_seg_start = d_seg_end;
+                q_seg_start = q_seg_end;
             }
 
-            let sub_seq = tabular::Table::new("{:<} {:<} {:<} {:<}")
-                .with_row(tabular::row!("d_bese:", &d_start, &d_best, &self.d_end))
-                .with_row(tabular::row!("", "", &sign_line, ""))
-                .with_row(tabular::row!("q_best:", &q_start, &q_best, &self.q_end));
-            return write!(f, "{}{}{}", result, pos, sub_seq)
+            return write!(f, "{}{}{}", seq_name, align_res, best)
         }
 
         unreachable!()
@@ -596,11 +653,12 @@ mod sw_avx2
         let ext_end = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile_u8)
         {
             Ok(res) => res,
-            Err(AlignErr::OverFlow) => 
+            Err(AlignErr::OverFlow {..}) => 
             {
                 let profile_u16 = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f);
                 ssw_word(&d_seq, &q_seq, go, ge, 0, &profile_u16)?
-            }
+            },
+            _ => unreachable!(),
         };
 
         if let AlignFlag::End = flag
@@ -609,14 +667,16 @@ mod sw_avx2
             {
                 let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
                 return Ok( AlignResult { d_id, q_id, d_start: None, q_start: None, d_end, q_end,
-                    d_best: None, q_best: None, opt, flag: AlignFlag::End } )
+                    d_best: None, q_best: None, opt, flag: AlignFlag::End
+                } )
             }
             
             if let AlignEnd::U16 { var, pos } = ext_end 
             {
                 let (opt, (d_end, q_end)) = (var as u32, (pos.0, pos.1));
                 return Ok( AlignResult { d_id, q_id, d_start: None, q_start: None, d_end, q_end,
-                    d_best: None, q_best: None, opt, flag: AlignFlag::End } )
+                    d_best: None, q_best: None, opt, flag: AlignFlag::End
+                } )
             }
 
             unreachable!()
@@ -641,8 +701,8 @@ mod sw_avx2
                 };
                 
                 let (d_best_u8, q_best_u8) = banded_sw(&d_seq[d_start-1..d_end], &q_seq[q_start-1..q_end], go, ge, &f);
-                let d_best = Some(String::from_utf8(d_best_u8).unwrap());
-                let q_best = Some(String::from_utf8(q_best_u8).unwrap());
+                let d_best = Some(d_best_u8);
+                let q_best = Some(q_best_u8);
 
                 let d_start = Some(d_start);
                 let q_start = Some(q_start);
@@ -663,13 +723,13 @@ mod sw_avx2
                 let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu16, &f);
                 let (d_start, q_start) = match ssw_word(&d_splited_rev, &q_splited_rev, go, ge, var, &profile_rev)?
                 {
-                    AlignEnd::U16 { pos, .. } => (pos.0, pos.1),
+                    AlignEnd::U16 { pos, .. } => (d_end - pos.0, q_end - pos.1),
                     _ => unreachable!(),
                 };
-                
+
                 let (d_best_u8, q_best_u8) = banded_sw(&d_seq[d_start-1..d_end], &q_seq[q_start-1..q_end], go, ge, &f);
-                let d_best = Some(String::from_utf8(d_best_u8).unwrap());
-                let q_best = Some(String::from_utf8(q_best_u8).unwrap());
+                let d_best = Some(d_best_u8);
+                let q_best = Some(q_best_u8);
 
                 let d_start = Some(d_start);
                 let q_start = Some(q_start);
