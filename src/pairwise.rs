@@ -658,9 +658,8 @@ mod sw_avx2
             Profile::Word { bias, profile } => (*bias, profile),
             _ => panic!("Unacceptable profile"),
         };
-        
-        let overflow_sign = u16::MAX - bias;
 
+        let overflow_threshold = u16::MAX.saturating_sub(bias);
         let seg_num = (q.len() + 15) / 16;
         let bias = M256Epu16::fill(bias);
 
@@ -669,36 +668,33 @@ mod sw_avx2
         let mut e_store = vec![M256Epu16::fill(0); seg_num];
         let mut h_buffer = vec![M256Epu16::fill(0); seg_num];
 
-        let mut opt_var = 0;
-        let mut opt_pos = (0, 0);
+        let mut opt = 0;
+        let mut pos = (0, 0);
         let mut max = M256Epu16::fill(0);
         let mut is_overflow = 0;
 
         if terminater == 0
         {
-            for (i, r) in d.iter().enumerate().take(d.len())
+            for (i, r) in d.iter().enumerate()
             {
                 f.zero_out();
 
                 let mut prev_h = *h_store.last().unwrap();
                 prev_h.shift_left_bytex2();
 
-                for (e_s, (h_buf, (h_s, score))) in e_store.iter_mut()
-                    .zip(h_buffer.iter_mut()
-                    .zip(h_store.iter_mut()
-                    .zip(profile[(r - 65) as usize].iter())))
+                for j in 0..seg_num
                 {
-                    let h = max_epu16!(prev_h + (*score) - bias, e_s);
-                    let e = max_epu16!(h - go, *e_s - ge);
+                    let score = profile[(*r - 65) as usize][j];
+                    let h = max_epu16!(prev_h - score + bias, e_store[j]);
+                    let e = max_epu16!(h - go, e_store[j] - ge);
                     f = max_epu16!(h - go, f - ge);
 
-                    *e_s = e;
-                    *h_buf = h;
-                    swap::<M256Epu16>(&mut prev_h, h_s);
+                    e_store[j] = e;
+                    h_buffer[j] = h;
+                    prev_h = h_store[j];
                 }
 
                 f.shift_left_bytex2();
-
                 let mut j = 0;
                 while f > h_buffer[j] - go
                 {
@@ -712,60 +708,62 @@ mod sw_avx2
                     }
                 }
 
-                h_buffer.iter().for_each(|h| max = max_epu16!(*h, max));
+                h_buffer.iter().for_each(|h| max = max_epu16!(max, *h));
+
                 let tmp = max.get_max();
 
-                if tmp == overflow_sign
+                if tmp == overflow_threshold
                 {
                     is_overflow = is_overflow + 1;
                     if is_overflow > 1
                     {
-                        Err(AlignErr::OverFlow)?
+                        Err (AlignErr::OverFlow
+                        {
+                            file: file!().to_string(),
+                            line: line!() as usize, 
+                            msg: "Score out of u16 range".to_string(),
+                        })?
                     }
                 }
 
-                if tmp > opt_var
+                if tmp > opt
                 {
-                    opt_var = tmp;
-                    opt_pos.0 = i;
-
-                    for (j, h) in h_buffer.iter().enumerate().take(seg_num)
+                    opt = tmp;
+                    for (j, h) in h_buffer.iter().enumerate()
                     {
-                        if h.contains(opt_var)
+                        if h.contains(opt)
                         {
-                            opt_pos.1 = h.position(opt_var) * seg_num + j;
+                            pos.0 = i;
+                            pos.1 = h.position(opt) * seg_num + j;
                             break;
                         }
                     }
                 }
-                swap::<Vec<M256Epu16>>(&mut h_store, &mut h_buffer);
+                swap::<Vec<M256Epu16>>(&mut h_buffer, &mut h_store);
             }
         }
         else
         {
-            'outer: for (i, r) in d.iter().enumerate().take(d.len())
+            'outer: for (i, r) in d.iter().enumerate()
             {
                 f.zero_out();
 
                 let mut prev_h = *h_store.last().unwrap();
                 prev_h.shift_left_bytex2();
 
-                for (e_s, (h_buf, (h_s, score))) in e_store.iter_mut()
-                    .zip(h_buffer.iter_mut()
-                    .zip(h_store.iter_mut()
-                    .zip(profile.get((r - 65) as usize).unwrap().iter())))
+                for j in 0..seg_num
                 {
-                    let h = max_epu16!(prev_h + (*score) - bias, *e_s);
-                    let e = max_epu16!(h - go, *e_s - ge);
+                    let score = profile[(*r - 65) as usize][j];
+                    let h = max_epu16!(prev_h + score - bias, e_store[j]);
+                    let e = max_epu16!(h - go, e_store[j] - ge);
                     f = max_epu16!(h - go, f - ge);
 
-                    *e_s = e;
-                    *h_buf = h;
-                    swap::<M256Epu16>(&mut prev_h, h_s);
+                    e_store[j] = e;
+                    h_buffer[j] = h;
+                    prev_h = h_store[j];
                 }
 
                 f.shift_left_bytex2();
-
                 let mut j = 0;
                 while f > h_buffer[j] - go
                 {
@@ -783,17 +781,171 @@ mod sw_avx2
                 {
                     if h.contains(terminater)
                     {
-                        opt_pos.0 = i;
-                        opt_pos.1 = h.position(terminater) * seg_num + j;
-                        opt_var = terminater;
+                        opt = terminater;
+                        pos.0 = i;
+                        pos.1 = h.position(opt) * seg_num + j;
                         break 'outer;
                     }
                 }
-                swap::<Vec<M256Epu16>>(&mut h_store, &mut h_buffer);
+                swap::<Vec<M256Epu16>>(&mut h_buffer, &mut h_store);
             }
         }
-        Ok( AlignEnd::U16 { var: opt_var, pos: opt_pos } )
+        Ok (AlignEnd::U16 { var: opt, pos })
     }
+
+    // fn ssw_word(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd, AlignErr>
+    // {
+    //     let go = M256Epu16::fill(go as u16);
+    //     let ge = M256Epu16::fill(ge as u16);
+
+    //     let (bias, profile) = match profile
+    //     {
+    //         Profile::Word { bias, profile } => (*bias, profile),
+    //         _ => panic!("Unacceptable profile"),
+    //     };
+        
+    //     let overflow_sign = u16::MAX - bias;
+
+    //     let seg_num = (q.len() + 15) / 16;
+    //     let bias = M256Epu16::fill(bias);
+
+    //     let mut f = M256Epu16::fill(0);
+    //     let mut h_store = vec![M256Epu16::fill(0); seg_num];
+    //     let mut e_store = vec![M256Epu16::fill(0); seg_num];
+    //     let mut h_buffer = vec![M256Epu16::fill(0); seg_num];
+
+    //     let mut opt_var = 0;
+    //     let mut opt_pos = (0, 0);
+    //     let mut max = M256Epu16::fill(0);
+    //     let mut is_overflow = 0;
+
+    //     if terminater == 0
+    //     {
+    //         for (i, r) in d.iter().enumerate()
+    //         {
+    //             f.zero_out();
+
+    //             let mut prev_h = *h_store.last().unwrap();
+    //             prev_h.shift_left_bytex2();
+
+    //             for (e_s, (h_buf, (h_s, score))) in e_store
+    //                 .iter_mut()
+    //                 .zip(h_buffer.iter_mut()
+    //                 .zip(h_store.iter_mut()
+    //                 .zip(profile[(r - 65) as usize].iter())))
+    //             {
+    //                 let h = max_epu16!(prev_h + (*score) - bias, *e_s);
+    //                 let e = max_epu16!(h - go, *e_s - ge);
+    //                 f = max_epu16!(h - go, f - ge);
+
+    //                 *e_s = e;
+    //                 *h_buf = h;
+    //                 swap::<M256Epu16>(&mut prev_h, h_s);
+    //             }
+
+    //             f.shift_left_bytex2();
+
+    //             let mut j = 0;
+    //             while f > h_buffer[j] - go
+    //             {
+    //                 h_buffer[j] = max_epu16!(f, h_buffer[j]);
+    //                 f = f - ge;
+
+    //                 if j+1 >= seg_num
+    //                 {
+    //                     f.shift_left_bytex2();
+    //                     j = 0;
+    //                 }
+    //             }
+
+    //             h_buffer.iter().for_each(|h| max = max_epu16!(*h, max));
+    //             let tmp = max.get_max();
+
+    //             if tmp == overflow_sign
+    //             {
+    //                 is_overflow = is_overflow + 1;
+    //                 if is_overflow > 1
+    //                 {
+    //                     Err(AlignErr::OverFlow
+    //                     {
+    //                         file: file!().to_string(),
+    //                         line: line!() as usize,
+    //                         msg: "Score out of u16 range".to_string(),
+    //                     })?
+    //                 }
+    //             }
+
+    //             if tmp > opt_var
+    //             {
+    //                 opt_var = tmp;
+    //                 opt_pos.0 = i;
+
+    //                 for (j, h) in h_buffer.iter().enumerate()
+    //                 {
+    //                     if h.contains(opt_var)
+    //                     {
+    //                         opt_pos.1 = h.position(opt_var) * seg_num + j;
+    //                         break;
+    //                     }
+    //                 }
+    //             }
+    //             swap::<Vec<M256Epu16>>(&mut h_store, &mut h_buffer);
+    //         }
+    //     }
+    //     else
+    //     {
+    //         'outer: for (i, r) in d.iter().enumerate()
+    //         {
+    //             f.zero_out();
+
+    //             let mut prev_h = *h_store.last().unwrap();
+    //             prev_h.shift_left_bytex2();
+
+    //             for (e_s, (h_buf, (h_s, score))) in e_store
+    //                 .iter_mut()
+    //                 .zip(h_buffer.iter_mut()
+    //                 .zip(h_store.iter_mut()
+    //                 .zip(profile.get((r - 65) as usize).unwrap().iter())))
+    //             {
+    //                 let h = max_epu16!(prev_h + (*score) - bias, *e_s);
+    //                 let e = max_epu16!(h - go, *e_s - ge);
+    //                 f = max_epu16!(h - go, f - ge);
+
+    //                 *e_s = e;
+    //                 *h_buf = h;
+    //                 swap::<M256Epu16>(&mut prev_h, h_s);
+    //             }
+
+    //             f.shift_left_bytex2();
+
+    //             let mut j = 0;
+    //             while f > h_buffer[j] - go
+    //             {
+    //                 h_buffer[j] = max_epu16!(f, h_buffer[j]);
+    //                 f = f - ge;
+
+    //                 if j+1 >= seg_num
+    //                 {
+    //                     f.shift_left_bytex2();
+    //                     j = 0;
+    //                 }
+    //             }
+
+    //             for (j, h) in h_buffer.iter().enumerate()
+    //             {
+    //                 if h.contains(terminater)
+    //                 {
+    //                     opt_pos.0 = i;
+    //                     opt_pos.1 = h.position(terminater) * seg_num + j;
+    //                     opt_var = terminater;
+    //                     break 'outer;
+    //                 }
+    //             }
+    //             swap::<Vec<M256Epu16>>(&mut h_store, &mut h_buffer);
+    //         }
+    //     }
+    //     Ok( AlignEnd::U16 { var: opt_var, pos: opt_pos } )
+    // }
 
     pub fn smith_waterman_avx2<S>(d: &Seq, q:&Seq, go: u8, ge: u8, flag: &AlignFlag, f: S) -> Result<AlignResult, AlignErr>
     where
@@ -933,6 +1085,7 @@ mod sw_scalar
     where
         S: Fn(u8, u8) -> i8
     {
+        let d_len = d.len();
         let q_len = q.len();
 
         let mut left_f: u32 = 0;
@@ -943,89 +1096,93 @@ mod sw_scalar
 
         let mut opt_var = 0;
         let mut opt_pos = (0, 0);
+        let mut is_overflow = 0;
+
         if terminater == 0
         {
-            for (i, dr) in d.iter().enumerate()
+            for i in 1..d_len+1
             {
-                let mut prev_h_iter_forward = *prev_h.first().unwrap();
-
-                for (qr, (p_e, (p_h, c_h))) in q.iter()
-                    .zip(prev_e.iter_mut().skip(1)
-                    .zip(prev_h.iter_mut().skip(1)
-                    .zip(current_h.iter_mut().skip(1))))
+                for j in 1..q_len + 1
                 {
-                    let e = max!(p_e.saturating_sub(ge), p_h.saturating_sub(go));
+                    assert!(d_len+1 >= i);
+                    assert!(q_len+1 >= j);
+
+                    let e = max!(prev_e[j].saturating_sub(ge), prev_h[j].saturating_sub(go));
                     let f = max!(left_f.saturating_sub(ge), left_h.saturating_sub(go));
 
-                    let pair = score(*dr, *qr);
+                    let pair = score(d[i - 1], q[j - 1]);
                     let ext = match pair > 0
                     {
-                        true  => prev_h_iter_forward.saturating_add(pair.unsigned_abs() as u32),
-                        false => prev_h_iter_forward.saturating_sub(pair.unsigned_abs() as u32),
+                        true => prev_h[j - 1].saturating_add(pair.unsigned_abs() as u32),
+                        false => prev_h[j - 1].saturating_sub(pair.unsigned_abs() as u32),
                     };
                     let h = max!(ext, e, f);
 
-                    *c_h = h;
-                    *p_e = e;
                     left_f = f;
                     left_h = h;
-                    prev_h_iter_forward = *p_h;
-                }
-
-                if current_h.contains(&u32::MAX)
-                {
-                    Err(AlignErr::OverFlow)?
+                    prev_e[j] = e;
+                    current_h[j] = h;
                 }
 
                 let max = *current_h.iter().max().unwrap();
-                if max > opt_var
+
+                if max == u32::MAX
                 {
-                    let j = current_h.iter().position(|item| *item==max).unwrap();
-                    opt_var = max;
-                    opt_pos = (i, j-1);
+                    is_overflow = is_overflow + 1;
+                    if is_overflow > 1
+                    {
+                        Err(AlignErr::OverFlow
+                        {
+                            file: file!().to_string(),
+                            line: line!() as usize,
+                            msg: "Score out of u32 range".to_string(),
+                        })?
+                    }
                 }
 
-                swap::<Vec<u32>>(&mut prev_h, &mut current_h);
+                if max > opt_var
+                {
+                    opt_var = max;
+                    opt_pos.0 = i;
+                    opt_pos.1 = current_h.iter().position(|h| *h == opt_var).unwrap();
+                }
+                swap::<Vec<u32>>(&mut current_h, &mut prev_h);
             }
         }
         else
         {
-            for (i, dr) in d.iter().enumerate()
+            'outer: for i in 1..d_len+1
             {
-                let mut prev_h_iter_forward = *prev_h.first().unwrap();
-
-                for (qr, (p_e, (p_h, c_h))) in q.iter()
-                    .zip(prev_e.iter_mut().skip(1)
-                    .zip(prev_h.iter_mut().skip(1)
-                    .zip(current_h.iter_mut().skip(1))))
+                for j in 1..q_len+1
                 {
-                    let e = max!(p_e.saturating_sub(ge), p_h.saturating_sub(go));
+                    assert!(d_len+1 >= i);
+                    assert!(q_len+1 >= j);
+                    let e = max!(prev_e[j].saturating_sub(ge), prev_h[j].saturating_sub(go));
                     let f = max!(left_f.saturating_sub(ge), left_h.saturating_sub(go));
 
-                    let pair = score(*dr, *qr);
+                    let pair = score(d[i-1], q[j-1]);
                     let ext = match pair > 0
                     {
-                        true  => prev_h_iter_forward.saturating_add(pair.unsigned_abs() as u32),
-                        false => prev_h_iter_forward.saturating_sub(pair.unsigned_abs() as u32),
+                        true  => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
+                        false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
                     };
+
                     let h = max!(ext, e, f);
 
-                    *c_h = h;
-                    *p_e = e;
                     left_f = f;
                     left_h = h;
-                    prev_h_iter_forward = *p_h;
+                    prev_e[j] = e;
+                    current_h[j] = h;
                 }
 
                 if current_h.contains(&terminater)
                 {
-                    let j = current_h.iter().position(|item| *item==terminater).unwrap();
                     opt_var = terminater;
-                    opt_pos = (i, j-1);
-                    break;
+                    opt_pos.0 = i;
+                    opt_pos.1 = current_h.iter().position(|h| *h == opt_var).unwrap();
+                    break 'outer;
                 }
-
-                swap::<Vec<u32>>(&mut prev_h, &mut current_h);
+                swap::<Vec<u32>>(&mut current_h, &mut prev_h);
             }
         }
         Ok( AlignEnd::U32 { var: opt_var, pos: opt_pos } )
@@ -1046,42 +1203,33 @@ mod sw_scalar
 
         let mut direction = vec![vec![0_u8; q_len+1]; d_len+1];
 
-        for (dr, dx) in d.iter()
-            .zip(direction.iter_mut().skip(1))
+        for i in 1..d_len+1
         {
-
-            let mut prev_h_iter_forward = *prev_h.first().unwrap();
-
-            for (qr, (dxy, (p_e, (p_h, c_h)))) in q.iter()
-                .zip(dx.iter_mut().skip(1)
-                .zip(prev_e.iter_mut().skip(1)
-                .zip(prev_h.iter_mut().skip(1)
-                .zip(current_h.iter_mut().skip(1)))))
+            for j in 1..q_len+1
             {
-                let e = max!(p_e.saturating_sub(ge), p_h.saturating_sub(go));
-                let f = max!(left_f.saturating_sub(ge), left_h.saturating_sub(go));
+                let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
+                let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
 
-                let pair = score(*dr, *qr);
+                let pair = score(d[i-1], q[j-1]);
                 let ext = match pair > 0
                 {
-                    true  => prev_h_iter_forward.saturating_add(pair.unsigned_abs() as u32),
-                    false => prev_h_iter_forward.saturating_sub(pair.unsigned_abs() as u32),
+                    true  => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
+                    false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u32),
                 };
                 let h = max!(ext, e, f);
 
-                *dxy = match h
+                direction[i][j] = match h
                 {
                     var1 if var1 == e   => 1,
                     var2 if var2 == f   => 2,
                     var3 if var3 == ext => 3,
-                    _                        => 0,
+                    _                        => unreachable!(),
                 };
 
-                *p_e = e;
-                *c_h = h;
                 left_f = f;
                 left_h = h;
-                prev_h_iter_forward = *p_h;
+                prev_e[j] = e;
+                current_h[j] = h;
             }
             swap::<Vec<u32>>(&mut prev_h, &mut current_h);
         }
@@ -1100,6 +1248,7 @@ mod sw_scalar
                 d_best.insert(0, d[i-1]);
                 q_best.insert(0, b'-');
                 i = i - 1;
+                // j = j - 1;
                 continue;
             }
 
@@ -1107,6 +1256,7 @@ mod sw_scalar
             {
                 d_best.insert(0, b'-');
                 q_best.insert(0, q[j-1]);
+                // i = i - 1;
                 j = j - 1;
                 continue;
             }
