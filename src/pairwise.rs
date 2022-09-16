@@ -198,7 +198,12 @@ mod sw_avx2
             }
         };
 
-        let seg_len = if matches!(p, ProfileType::Epu8) { 32 } else { 16 };
+        let seg_len = match p
+        {
+            ProfileType::Epu8  => 32,
+            ProfileType::Epu16 => 16,
+        };
+
         let seg_num = (q.len() + seg_len - 1) / seg_len;
 
         let mut seg_set = vec![Vec::new(); seg_num];
@@ -216,45 +221,48 @@ mod sw_avx2
         }
 
         let profile_len = alphabet_d.iter().max().map(|item| *item as usize).unwrap() - 64;
-        
+
         if seg_len == 16
         {
             let mut profile = vec![Vec::new(); profile_len];
-            for residue in alphabet_d.iter()
+            for residue in alphabet_d.iter().copied()
             {
-                let mut score_vec = Vec::with_capacity(seg_num);
+                let mut score_set = Vec::with_capacity(seg_num);
                 for seg in seg_set.iter()
                 {
                     let score = seg.iter()
                         .copied()
-                        .zip(vec![*residue; seg_len])
+                        .zip(vec![residue; seg_len])
                         .map(|(r1, r2)| n(r1, r2).unsigned_abs() as u16)
                         .collect::<Vec<u16>>();
-                    score_vec.push(M256Epu16::from(&score[..]));
+                    score_set.push(M256Epu16::from(&score[..]));
                 }
-                profile[(*residue - 65) as usize] = score_vec;
+                profile[(residue - 65) as usize] = score_set;
             }
-            Profile::Word { bias: bias.unsigned_abs() as u16, profile }
+            return Profile::Word { bias: bias.unsigned_abs() as u16, profile }
         }
-        else
+        
+        if seg_len == 32
         {
             let mut profile = vec![Vec::new(); profile_len];
-            for residue in alphabet_d.iter()
+            for residue in alphabet_d.iter().copied()
             {
-                let mut score_vec = Vec::with_capacity(seg_num);
+                let mut score_set = Vec::with_capacity(seg_num);
                 for seg in seg_set.iter()
                 {
                     let score = seg.iter()
                         .copied()
-                        .zip(vec![*residue; seg_len])
+                        .zip(vec![residue; seg_len])
                         .map(|(r1, r2)| n(r1, r2).unsigned_abs())
                         .collect::<Vec<u8>>();
-                    score_vec.push(M256Epu8::from(&score[..]));
+                    score_set.push(M256Epu8::from(&score[..]));
                 }
-                profile[(*residue - 65) as usize] = score_vec;
+                profile[(residue - 65) as usize] = score_set;
             }
-            Profile::Byte { bias: bias.unsigned_abs(), profile }
+            return Profile::Byte { bias: bias.unsigned_abs(), profile }
         }
+
+        unreachable!()
     }
 
     fn banded_sw<S>(d: &[u8], q: &[u8], go: u8, ge: u8, score: &S) -> (Vec<u8>, Vec<u8>)
