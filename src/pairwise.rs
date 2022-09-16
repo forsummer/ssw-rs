@@ -1273,7 +1273,7 @@ mod sw_scalar
         (d_best, q_best)
     }
 
-    pub fn smith_waterman_scalar<S>(d: &Seq, q: &Seq, go: u32, ge: u32, flag: AlignFlag, score: S) -> Result<AlignResult, AlignErr>
+    pub fn smith_waterman_scalar<S>(d: &Seq, q: &Seq, go: u32, ge: u32, flag: &AlignFlag, score: S) -> Result<AlignResult, AlignErr>
     where
         S: Fn(u8, u8) -> i8
     {
@@ -1300,14 +1300,15 @@ mod sw_scalar
 
         let (opt, (d_end, q_end)) = match sw_scalar(&d_seq, &q_seq, go, ge, 0, &score)?
         {
-            AlignEnd::U32 { var, pos } => (var, (pos.0+1, pos.1+1)),
+            AlignEnd::U32 { var, pos } => (var, (pos.0, pos.1)),
             _ => unreachable!(),
         };
 
         if let AlignFlag::End = flag
         {
             return Ok ( AlignResult { d_id, q_id, d_start: None, q_start: None, d_end, q_end,
-                d_best: None, q_best: None, opt, flag: AlignFlag::End } )
+                d_best: None, q_best: None, opt, flag: AlignFlag::End
+            } )
         }
 
         if let AlignFlag::Path = flag
@@ -1319,20 +1320,20 @@ mod sw_scalar
 
             let (d_start, q_start) = match sw_scalar(&d_splited_rev, &q_splited_rev, go, ge, opt, &score)?
             {
-                AlignEnd::U32 { pos, .. } => (pos.0, pos.1),
+                AlignEnd::U32 { pos, .. } => (d_end - pos.0, q_end - pos.1),
                 _ => unreachable!(),
             };
 
-            let d_sub = &d_seq[d_start-1..d_end];
-            let q_sub = &q_seq[q_start-1..q_end];
+            let d_sub = &d_seq[d_start..d_end];
+            let q_sub = &q_seq[q_start..q_end];
 
             let (d_best_u8, q_best_u8) = banded_sw(d_sub, q_sub, go, ge, &score);
 
-            let d_best = Some(String::from_utf8(d_best_u8).unwrap());
-            let q_best = Some(String::from_utf8(q_best_u8).unwrap());
+            let d_best = Some(d_best_u8);
+            let q_best = Some(q_best_u8);
 
-            let d_start = Some(d_start);
-            let q_start = Some(q_start);
+            let d_start = Some(d_start+1);
+            let q_start = Some(q_start+1);
 
             return Ok ( AlignResult { d_id, q_id, d_start, q_start, d_end, q_end,
                 d_best, q_best, opt, flag: AlignFlag::Path } )
