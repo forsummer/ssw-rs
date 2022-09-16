@@ -646,8 +646,28 @@ mod sw_avx2
         let d_id = d.id.clone();
         let q_id = q.id.clone();
 
-        let d_seq = d.seq.to_ascii_uppercase();
-        let q_seq = q.seq.to_ascii_uppercase();
+        let (d_seq, q_seq) = match (d.seq.is_ascii(), q.seq.is_ascii())
+        {
+            (true, true)   => (d.seq.to_ascii_uppercase(), q.seq.to_ascii_uppercase()),
+            (true, false)  => Err(AlignErr::IllegalChar
+                {
+                    file: file!().to_string(),
+                    line: line!() as usize,
+                    msg: "Non-ascii character contain in database sequence".to_string(),
+                })?,
+            (false, true)  => Err(AlignErr::IllegalChar
+                {
+                    file: file!().to_string(),
+                    line: line!() as usize,
+                    msg: "Non-ascii character contain in query sequence".to_string(),
+                })?,
+            (false, false) => Err(AlignErr::IllegalChar
+                {
+                    file: file!().to_string(),
+                    line: line!() as usize,
+                    msg: "Non-ascii character contain in database/query sequence".to_string(),
+                })?,
+        };
 
         let profile_u8 = query_profile(&d_seq, &q_seq, ProfileType::Epu8, &f);
         let ext_end = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile_u8)
@@ -953,9 +973,25 @@ mod sw_scalar
     {
         let d_id = d.id.clone();
         let q_id = q.id.clone();
-        let d_seq = d.seq.to_ascii_uppercase();
-        let q_seq = q.seq.to_ascii_uppercase();
-        
+
+        let (d_seq, q_seq) = match (d.seq.is_ascii(), q.seq.is_ascii())
+        {
+            (true, true)  => (d.seq.to_ascii_uppercase(), q.seq.to_ascii_uppercase()),
+            (true, false) => Err(AlignErr::IllegalChar
+                {
+                    file: file!().to_string(),
+                    line: line!() as usize,
+                    msg: "Non-ascii character contain in database sequence".to_string(),
+                })?,
+            (false, true) => Err(AlignErr::IllegalChar
+                {
+                    file: file!().to_string(),
+                    line: line!() as usize,
+                    msg: "Non-ascii character contain in query sequence".to_string(),
+                })?,
+            _ => unreachable!(),
+        };
+
         let (opt, (d_end, q_end)) = match sw_scalar(&d_seq, &q_seq, go, ge, 0, &score)?
         {
             AlignEnd::U32 { var, pos } => (var, (pos.0+1, pos.1+1)),
