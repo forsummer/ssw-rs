@@ -685,7 +685,7 @@ mod sw_avx2
                 for j in 0..seg_num
                 {
                     let score = profile[(*r - 65) as usize][j];
-                    let h = max_epu16!(prev_h - score + bias, e_store[j]);
+                    let h = max_epu16!(prev_h + score - bias, e_store[j]);
                     let e = max_epu16!(h - go, e_store[j] - ge);
                     f = max_epu16!(h - go, f - ge);
 
