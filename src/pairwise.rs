@@ -1001,7 +1001,7 @@ mod sw_avx2
             
             if let AlignEnd::U16 { var, pos } = ext_end 
             {
-                let (opt, (d_end, q_end)) = (var as u32, (pos.0, pos.1));
+                let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
                 return Ok( AlignResult { d_id, q_id, d_start: None, q_start: None, d_end, q_end,
                     d_best: None, q_best: None, opt, flag: AlignFlag::End
                 } )
