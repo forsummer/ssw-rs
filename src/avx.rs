@@ -1,6 +1,6 @@
 pub mod avx2
 {    
-    use std::fmt::Debug;
+    use std::fmt::{ Debug, Display };
     use std::ops::{ Add, Sub, Index };
     use std::mem::{ size_of, transmute };
     use std::arch::x86_64::__m256i;
@@ -239,6 +239,38 @@ pub mod avx2
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
         {
             f.debug_list().entries(self.to_vec().iter().rev()).finish()
+        }
+    }
+
+    impl Display for M256Epu8
+    {
+        #[inline]
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+        {
+            let v = self.to_vec();
+            let output = format!("{:<} {:<} {:<} {:<} {:<} {:<} {:<} {:<}
+                {:<} {:<} {:<} {:<} {:<} {:<} {:<} {:<}
+                {:<} {:<} {:<} {:<} {:<} {:<} {:<} {:<}
+                {:<} {:<} {:<} {:<} {:<} {:<} {:<} {:<}",
+                v[0],  v[1],  v[2],  v[3],  v[4],  v[5],  v[6],  v[7],
+                v[8],  v[9],  v[10], v[11], v[12], v[13], v[14], v[15],
+                v[16], v[17], v[18], v[19], v[20], v[21], v[22], v[23],
+                v[24], v[25], v[26], v[27], v[28], v[29], v[30], v[31]);
+            write!(f, "{}", output)
+        }
+    }
+
+    impl Display for M256Epu16
+    {
+        #[inline]
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+        {
+            let v = self.to_vec();
+            let output = format!("{:<} {:<} {:<} {:<} {:<} {:<} {:<} {:<}
+                {:<} {:<} {:<} {:<} {:<} {:<} {:<} {:<}",
+                v[0], v[1], v[2],  v[3],  v[4],  v[5],  v[6],  v[7],
+                v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]);
+            write!(f, "{}", output)
         }
     }
 
