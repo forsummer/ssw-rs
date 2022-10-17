@@ -99,7 +99,7 @@ pub mod avx2
         #[inline]
         fn eq(&self, other: &Self) -> bool
         {
-            unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi8(self.0, other.0)) == -1 }
+            unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi16(self.0, other.0)) == -1 }
         }
     }
 
