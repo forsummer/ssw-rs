@@ -1,7 +1,5 @@
 pub mod avx2
 {    
-    use std::fmt::{ Debug, Display };
-    use std::ops::{ Add, Sub, Index };
     use std::mem::{ size_of, transmute };
     use std::arch::x86_64::__m256i;
     use std::arch::x86_64::_mm256_set_epi8;
@@ -26,7 +24,7 @@ pub mod avx2
     #[derive(Clone, Copy)]
     pub struct M256Epu16(pub __m256i);
 
-    impl From<&[u8]> for M256Epu8
+    impl std::convert::From<&[u8]> for M256Epu8
     {   
         fn from(s: &[u8]) -> Self
         {
@@ -40,7 +38,7 @@ pub mod avx2
         }
     }
 
-    impl From<&[u16]> for M256Epu16
+    impl std::convert::From<&[u16]> for M256Epu16
     {
         #[inline]
         fn from(s: &[u16]) -> Self
@@ -55,7 +53,7 @@ pub mod avx2
         }
     }
     
-    impl FromIterator<u8> for M256Epu8
+    impl std::iter::FromIterator<u8> for M256Epu8
     {
         #[inline]
         fn from_iter<T: IntoIterator<Item = u8>>(iter: T) -> Self
@@ -70,7 +68,7 @@ pub mod avx2
         }
     }
 
-    impl FromIterator<u16> for M256Epu16
+    impl std::iter::FromIterator<u16> for M256Epu16
     {
         #[inline]
         fn from_iter<T: IntoIterator<Item = u16>>(iter: T) -> Self
@@ -85,7 +83,7 @@ pub mod avx2
         }
     }
 
-    impl PartialEq for M256Epu8
+    impl std::cmp::PartialEq for M256Epu8
     {
         #[inline]
         fn eq(&self, other: &Self) -> bool
@@ -94,7 +92,7 @@ pub mod avx2
         }
     }
 
-    impl PartialEq for M256Epu16
+    impl std::cmp::PartialEq for M256Epu16
     {
         #[inline]
         fn eq(&self, other: &Self) -> bool
@@ -103,7 +101,7 @@ pub mod avx2
         }
     }
 
-    impl PartialOrd for M256Epu8
+    impl std::cmp::PartialOrd for M256Epu8
     {
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering>
         {
@@ -126,20 +124,20 @@ pub mod avx2
         }
     }
 
-    impl PartialOrd for M256Epu16
+    impl std::cmp::PartialOrd for M256Epu16
     {
         #[inline]
         fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering>
         {
-            if unsafe {_mm256_movemask_epi8(_mm256_cmpeq_epi16(self.0, other.0)) == -1}
+            if unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi16(self.0, other.0)) == -1 }
             {
                 Some(std::cmp::Ordering::Equal)
             }
-            else if unsafe {_mm256_movemask_epi8(_mm256_cmpgt_epi16(self.0, other.0)) == -1}
+            else if unsafe { _mm256_movemask_epi8(_mm256_cmpgt_epi16(self.0, other.0)) == -1 }
             {
                 Some(std::cmp::Ordering::Greater)
             }
-            else if unsafe {_mm256_movemask_epi8(_mm256_cmpgt_epi16(other.0, self.0)) == -1}
+            else if unsafe { _mm256_movemask_epi8(_mm256_cmpgt_epi16(other.0, self.0)) == -1 }
             {
                 Some(std::cmp::Ordering::Less)
             }
@@ -150,7 +148,7 @@ pub mod avx2
         }
     }
 
-    impl Add for M256Epu8
+    impl std::ops::Add for M256Epu8
     {
         type Output = M256Epu8;
 
@@ -161,7 +159,7 @@ pub mod avx2
         }
     }
 
-    impl Add for M256Epu16
+    impl std::ops::Add for M256Epu16
     {
         type Output = M256Epu16;
 
@@ -172,7 +170,7 @@ pub mod avx2
         }
     }
 
-    impl Sub for M256Epu8
+    impl std::ops::Sub for M256Epu8
     {
         type Output = M256Epu8;
 
@@ -183,7 +181,7 @@ pub mod avx2
         }
     }
 
-    impl Sub for M256Epu16
+    impl std::ops::Sub for M256Epu16
     {
         type Output = M256Epu16;
 
@@ -194,7 +192,7 @@ pub mod avx2
         }
     }
 
-    impl Index<usize> for M256Epu8
+    impl std::ops::Index<usize> for M256Epu8
     {
         type Output = u8;
 
@@ -209,7 +207,7 @@ pub mod avx2
         }
     }
 
-    impl Index<usize> for M256Epu16
+    impl std::ops::Index<usize> for M256Epu16
     {
         type Output = u16;
 
@@ -224,7 +222,7 @@ pub mod avx2
         }
     }
 
-    impl Debug for M256Epu8
+    impl std::fmt::Debug for M256Epu8
     {
         #[inline]
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
@@ -233,7 +231,7 @@ pub mod avx2
         }
     }
 
-    impl Debug for M256Epu16
+    impl std::fmt::Debug for M256Epu16
     {
         #[inline]
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
@@ -242,7 +240,7 @@ pub mod avx2
         }
     }
 
-    impl Display for M256Epu8
+    impl std::fmt::Display for M256Epu8
     {
         #[inline]
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
@@ -260,7 +258,7 @@ pub mod avx2
         }
     }
 
-    impl Display for M256Epu16
+    impl std::fmt::Display for M256Epu16
     {
         #[inline]
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
