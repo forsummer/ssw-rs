@@ -400,10 +400,7 @@ pub mod avx2
         ($x: expr, $($xs: expr), +)  => 
         { 
             {
-                unsafe
-                {
-                    M256Epu8(std::arch::x86_64::_mm256_max_epu8($x.0, max_epu8!( $($xs.0),+ )))
-                }
+                unsafe { M256Epu8(std::arch::x86_64::_mm256_max_epu8($x.0, max_epu8!( $($xs.0),+ ))) }
             }
         };
     }
@@ -414,11 +411,8 @@ pub mod avx2
         ($x:expr) => ( $x );
         ($x: expr, $($xs: expr), +)  => 
         { 
-            {
-                unsafe
-                {
-                    M256Epu16(std::arch::x86_64::_mm256_max_epu16($x.0, max_epu16!( $($xs.0),+ )))
-                }
+            { 
+                unsafe { M256Epu16(std::arch::x86_64::_mm256_max_epu16($x.0, max_epu16!( $($xs.0),+ ))) }
             }
         };
     }
