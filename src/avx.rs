@@ -3,6 +3,8 @@ pub mod avx2
     use std::mem::{ size_of, transmute };
     use std::arch::x86_64::__m256i;
     use std::arch::x86_64::_mm256_set_epi8;
+    use std::arch::x86_64::_mm256_set1_epi8;
+    use std::arch::x86_64::_mm256_set1_epi16;
     use std::arch::x86_64::_mm256_max_epu8;
     use std::arch::x86_64::_mm256_adds_epu8;
     use std::arch::x86_64::_mm256_adds_epu16;
@@ -11,8 +13,6 @@ pub mod avx2
     use std::arch::x86_64::_mm256_load_si256;
     use std::arch::x86_64::_mm256_cmpeq_epi8;
     use std::arch::x86_64::_mm256_cmpeq_epi16;
-    use std::arch::x86_64::_mm256_cmpgt_epi8;
-    use std::arch::x86_64::_mm256_cmpgt_epi16;
     use std::arch::x86_64::_mm256_shuffle_epi8;
     use std::arch::x86_64::_mm256_movemask_epi8;
     use std::arch::x86_64::_mm256_alignr_epi8;
@@ -98,53 +98,6 @@ pub mod avx2
         fn eq(&self, other: &Self) -> bool
         {
             unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi16(self.0, other.0)) == -1 }
-        }
-    }
-
-    impl std::cmp::PartialOrd for M256Epu8
-    {
-        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering>
-        {
-            if unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi8(self.0, other.0)) == -1 }
-            {
-                Some(std::cmp::Ordering::Equal)
-            }
-            else if unsafe { _mm256_movemask_epi8(_mm256_cmpgt_epi8(self.0, other.0)) == -1 }
-            {
-                Some(std::cmp::Ordering::Greater)
-            }
-            else if unsafe { _mm256_movemask_epi8(_mm256_cmpgt_epi8(other.0, self.0)) == -1 }
-            {
-                Some(std::cmp::Ordering::Less)
-            }
-            else
-            {
-                None
-            }
-        }
-    }
-
-    impl std::cmp::PartialOrd for M256Epu16
-    {
-        #[inline]
-        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering>
-        {
-            if unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi16(self.0, other.0)) == -1 }
-            {
-                Some(std::cmp::Ordering::Equal)
-            }
-            else if unsafe { _mm256_movemask_epi8(_mm256_cmpgt_epi16(self.0, other.0)) == -1 }
-            {
-                Some(std::cmp::Ordering::Greater)
-            }
-            else if unsafe { _mm256_movemask_epi8(_mm256_cmpgt_epi16(other.0, self.0)) == -1 }
-            {
-                Some(std::cmp::Ordering::Less)
-            }
-            else
-            {
-                None
-            }
         }
     }
 
@@ -282,6 +235,17 @@ pub mod avx2
         }
 
         #[inline]
+        pub fn anyelement_gt(&self, other: &M256Epu8) -> bool
+        {
+            unsafe
+            {
+                let tmp = _mm256_subs_epu8(self.0, other.0);
+                let mask = _mm256_cmpeq_epi8(tmp, _mm256_set1_epi8(0));
+                _mm256_movemask_epi8(mask) != -1
+            }
+        }
+
+        #[inline]
         pub fn to_vec(self) -> Vec<u8>
         {
             unsafe { transmute::<__m256i, [u8; 32]>(self.0).to_vec() }
@@ -349,6 +313,17 @@ pub mod avx2
         pub fn fill(item: u16) -> M256Epu16
         {
             unsafe { M256Epu16(_mm256_load_si256(&transmute::<[u16; 16], __m256i>([item; 16]))) }
+        }
+
+        #[inline]
+        pub fn anyelement_gt(&self, other: &M256Epu16) -> bool
+        {
+            unsafe
+            {
+                let tmp = _mm256_subs_epu16(self.0, other.0);
+                let mask = _mm256_cmpeq_epi16(tmp, _mm256_set1_epi16(0));
+                _mm256_movemask_epi8(mask) != -1
+            }
         }
 
         #[inline]
@@ -422,6 +397,8 @@ pub mod avx2
 #[cfg(test)]
 mod test_m256_epu16
 {
+    use std::mem::transmute;
+    use std::arch::x86_64::__m256i;
     use std::arch::x86_64::_mm256_set_epi16;
     use std::arch::x86_64::_mm256_set1_epi16;
     use super::avx2::M256Epu16;
@@ -443,35 +420,11 @@ mod test_m256_epu16
     }
 
     #[test]
-    fn test_gt()
+    fn test_anyelement_gt()
     {
-        let a = M256Epu16(unsafe {_mm256_set_epi16(9, 1, 2, 4, 5, 8, 5, 1, 8, 20, 3, 8, 9, 9, 4, 9)});
-        let b = M256Epu16(unsafe {_mm256_set_epi16(8, 0, 1, 3, 4, 7, 1, 0, 7, 1, 2, 5, 8, 4, 3, 2)});
-        assert!(a > b);
-    }
-
-    #[test]
-    fn test_gt_false()
-    {
-        let a = M256Epu16(unsafe {_mm256_set_epi16(9, 1, 2, 4, 5, 8, 5, 1, 8, 20, 3, 8, 9, 9, 4, 9)});
-        let b = M256Epu16(unsafe {_mm256_set_epi16(8, 1, 1, 3, 4, 7, 1, 0, 7, 1, 2, 5, 8, 4, 3, 2)});
-        assert!(!(a > b));
-    }
-
-    #[test]
-    fn test_le()
-    {
-        let a = M256Epu16(unsafe {_mm256_set_epi16(9, 1, 2, 4, 5, 8, 5, 1, 8, 20, 3, 8, 9, 9, 4, 9)});
-        let b = M256Epu16(unsafe {_mm256_set_epi16(8, 0, 1, 3, 4, 7, 1, 0, 7, 1, 2, 5, 8, 4, 3, 2)});
-        assert!(b < a);
-    }
-
-    #[test]
-    fn test_le_false()
-    {
-        let a = M256Epu16(unsafe {_mm256_set_epi16(9, 1, 2, 4, 5, 8, 5, 1, 8, 20, 3, 8, 9, 9, 4, 9)});
-        let b = M256Epu16(unsafe {_mm256_set_epi16(8, 1, 1, 3, 4, 7, 1, 0, 7, 1, 2, 5, 8, 4, 3, 2)});
-        assert!(!(b < a));
+        let a = M256Epu16(unsafe { transmute::<[u16; 16], __m256i>([32768, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) });
+        let b = M256Epu16(unsafe { transmute::<[u16; 16], __m256i>([32767, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) });
+        assert!(a.anyelement_gt(&b));
     }
 
     #[test]
@@ -682,43 +635,14 @@ mod test_m256_epu8
     }
 
     #[test]
-    fn test_gt()
+    fn test_anyelement_gt()
     {
-        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
-        let b = unsafe { M256Epu8(_mm256_set_epi8(31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
-            15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
-        assert!(a > b);
-    }
+        let a = M256Epu8(unsafe { transmute::<[u8; 32], __m256i>([128, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]) });
+        let b = M256Epu8(unsafe { transmute::<[u8; 32], __m256i>([127, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]) });
 
-    #[test]
-    fn test_gt_false()
-    {
-        let a = unsafe { M256Epu8(_mm256_set_epi8(0, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
-        let b = unsafe { M256Epu8(_mm256_set_epi8(31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
-            15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
-    assert!(!(a > b));
-    }
-
-    #[test]
-    fn test_le()
-    {
-        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
-        let b = unsafe { M256Epu8(_mm256_set_epi8(33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2)) };
-        assert!(a < b);
-    }
-
-    #[test]
-    fn test_le_false()
-    {
-        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
-        let b = unsafe { M256Epu8(_mm256_set_epi8(0, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2)) };
-        assert!(!(a < b));
+        assert!(a.anyelement_gt(&b));
     }
 
     #[test]
