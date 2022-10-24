@@ -151,8 +151,7 @@ mod sw_avx2
     use std::mem::swap;
 
     use crate::load::Seq;
-    use crate::avx::avx2::{ M256Epu8, M256Epu16 };
-    use crate::avx::avx2::{ max_epu8, max_epu16 };
+    use crate::avx::avx2::{ M256Epu8, M256Epu16, max_epu8, max_epu16 };
     use crate::pairwise::{ AlignEnd, AlignErr, AlignFlag, AlignResult };
     
     enum Profile
@@ -388,9 +387,9 @@ mod sw_avx2
                 for j in 0..seg_num
                 {
                     let score = profile[(*r - 65) as usize][j];
-                    let h = max_epu8!(prev_h + score - bias, e_store[j]);
-                    let e = max_epu8!(h - go, e_store[j] - ge);
-                    f = max_epu8!(h - go, f - ge);
+                    let h = max_epu8(max_epu8(prev_h + score - bias, e_store[j]), f);
+                    let e = max_epu8(h - go, e_store[j] - ge);
+                    f = max_epu8(h - go, f - ge);
 
                     e_store[j]  = e;
                     h_buffer[j] = h;
@@ -399,9 +398,10 @@ mod sw_avx2
 
                 f.shift_left_byte();
                 let mut j = 0;
-                while f > h_buffer[j] - go
+                while f.anyelement_gt(&(h_buffer[j] - go))
                 {
-                    h_buffer[j] = max_epu8!(f, h_buffer[j]);
+                    h_buffer[j] = max_epu8(f, h_buffer[j]);
+                    e_store[j] = max_epu8(e_store[j], h_buffer[j] - go);
                     f = f - ge;
 
                     if j+1 >= seg_num
@@ -411,7 +411,7 @@ mod sw_avx2
                     }
                 }
 
-                h_buffer.iter().for_each(|h| max = max_epu8!(max, *h));
+                h_buffer.iter().for_each(|h| max = max_epu8(max, *h));
                 let tmp = max.get_max();
 
                 if tmp == overflow_threshold
@@ -455,9 +455,9 @@ mod sw_avx2
                 for j in 0..seg_num
                 {
                     let score = profile[(r - 65) as usize][j];
-                    let h = max_epu8!(prev_h + score - bias, e_store[j]);
-                    let e = max_epu8!(e_store[j] - ge, h - go);
-                    f = max_epu8!(f - ge, h - go);
+                    let h = max_epu8(max_epu8(prev_h + score - bias, e_store[j]), f);
+                    let e = max_epu8(e_store[j] - ge, h - go);
+                    f = max_epu8(f - ge, h - go);
 
                     e_store[j] = e;
                     h_buffer[j] = h;
@@ -466,11 +466,12 @@ mod sw_avx2
 
                 f.shift_left_byte();
                 let mut j = 0;
-                while f > h_buffer[j] - go
+                while f.anyelement_gt(&(h_buffer[j] - go))
                 {
-                    h_buffer[j] = max_epu8!(f, h_buffer[j]);
+                    h_buffer[j] = max_epu8(f, h_buffer[j]);
+                    e_store[j] = max_epu8(e_store[j], h_buffer[j] - go);
                     f = f - ge;
-    
+                    
                     if j+1 >= seg_num
                     {
                         f.shift_left_byte();
@@ -685,9 +686,9 @@ mod sw_avx2
                 for j in 0..seg_num
                 {
                     let score = profile[(*r - 65) as usize][j];
-                    let h = max_epu16!(prev_h + score - bias, e_store[j]);
-                    let e = max_epu16!(h - go, e_store[j] - ge);
-                    f = max_epu16!(h - go, f - ge);
+                    let h = max_epu16(max_epu16(prev_h + score - bias, e_store[j]), f);
+                    let e = max_epu16(h - go, e_store[j] - ge);
+                    f = max_epu16(h - go, f - ge);
 
                     e_store[j] = e;
                     h_buffer[j] = h;
@@ -696,9 +697,10 @@ mod sw_avx2
 
                 f.shift_left_bytex2();
                 let mut j = 0;
-                while f > h_buffer[j] - go
+                while f.anyelement_gt(&(h_buffer[j] - go))
                 {
-                    h_buffer[j] = max_epu16!(f, h_buffer[j]);
+                    h_buffer[j] = max_epu16(f, h_buffer[j]);
+                    e_store[j] = max_epu16(e_store[j], h_buffer[j] - go);
                     f = f - ge;
 
                     if j+1 >= seg_num
@@ -708,7 +710,7 @@ mod sw_avx2
                     }
                 }
 
-                h_buffer.iter().for_each(|h| max = max_epu16!(max, *h));
+                h_buffer.iter().for_each(|h| max = max_epu16(max, *h));
 
                 let tmp = max.get_max();
 
@@ -754,9 +756,9 @@ mod sw_avx2
                 for j in 0..seg_num
                 {
                     let score = profile[(*r - 65) as usize][j];
-                    let h = max_epu16!(prev_h + score - bias, e_store[j]);
-                    let e = max_epu16!(h - go, e_store[j] - ge);
-                    f = max_epu16!(h - go, f - ge);
+                    let h = max_epu16(max_epu16(prev_h + score - bias, e_store[j]), f);
+                    let e = max_epu16(h - go, e_store[j] - ge);
+                    f = max_epu16(h - go, f - ge);
 
                     e_store[j] = e;
                     h_buffer[j] = h;
@@ -765,9 +767,10 @@ mod sw_avx2
 
                 f.shift_left_bytex2();
                 let mut j = 0;
-                while f > h_buffer[j] - go
+                while f.anyelement_gt(&(h_buffer[j] - go))
                 {
-                    h_buffer[j] = max_epu16!(f, h_buffer[j]);
+                    h_buffer[j] = max_epu16(f, h_buffer[j]);
+                    e_store[j] = max_epu16(e_store[j], h_buffer[j] - go);
                     f = f - ge;
 
                     if j+1 >= seg_num
