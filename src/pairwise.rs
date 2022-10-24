@@ -1071,7 +1071,6 @@ mod sw_scalar
 {
     use std::mem::swap;
 
-    use crate::load::Seq;
     use crate::pairwise::{ AlignEnd, AlignErr, AlignFlag, AlignResult };
 
     fn sw_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, terminater: u32, score: &S) -> Result<AlignEnd, AlignErr>
@@ -1266,13 +1265,13 @@ mod sw_scalar
         (d_best, q_best)
     }
 
-    pub fn smith_waterman_scalar<S>(d: &Seq, q: &Seq, go: u32, ge: u32, flag: &AlignFlag, score: S) -> Result<AlignResult, AlignErr>
+    pub fn smith_waterman_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, flag: &AlignFlag, score: S) -> Result<AlignResult, AlignErr>
     where
         S: Fn(u8, u8) -> i8
     {
-        let (d_seq, q_seq) = match (d.seq.is_ascii(), q.seq.is_ascii())
+        let (d_seq, q_seq) = match (d.is_ascii(), q.is_ascii())
         {
-            (true, true)  => (d.seq.to_ascii_uppercase(), q.seq.to_ascii_uppercase()),
+            (true, true)  => (d.to_ascii_uppercase(), q.to_ascii_uppercase()),
             (true, false) => Err(AlignErr::IllegalChar
                 {
                     file: file!().to_string(),
