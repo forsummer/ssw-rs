@@ -26,8 +26,8 @@ where
     {
         let record = item.map_or_else(|err| panic!("{}", err.msg), |r| r);
         let id = String::from_utf8(record.id()
-                        .to_vec())
-                        .map_or_else(|err| panic!("{}", err), |s| s);
+            .to_vec())
+            .map_or_else(|err| panic!("{}", err), |s| s);
         let seq = record.seq().to_vec();
         seq_set.push(Seq { id, seq });
     }
