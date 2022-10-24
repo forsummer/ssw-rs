@@ -65,8 +65,6 @@ impl std::fmt::Display for AlignErr
 
 pub struct AlignResult
 {
-    pub d_id: String,
-    pub q_id: String,
     pub d_start: Option<usize>,
     pub q_start: Option<usize>,
     pub d_end: usize,
@@ -81,10 +79,6 @@ impl std::fmt::Display for AlignResult
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
-        let seq_name = tabular::Table::new("{:<} {:<}")
-            .with_row(tabular::row!("d_name:", &self.d_id))
-            .with_row(tabular::row!("q_name:", &self.q_id));
-
         if let AlignFlag::End = self.flag
         {
             let align_res = tabular::Table::new("\n{:<} {:<}, {:<} {:<}, {:<} {:<}")
@@ -92,7 +86,7 @@ impl std::fmt::Display for AlignResult
                     "optimal_alignment_score:", self.opt,
                     "d_end:", self.d_end,
                     "q_end:", self.q_end));
-            return write!(f, "{}{}", seq_name, align_res)
+            return write!(f, "{}", align_res)
         }
 
         if let AlignFlag::Path = self.flag
@@ -139,7 +133,7 @@ impl std::fmt::Display for AlignResult
                 q_seg_start = q_seg_end;
             }
 
-            return write!(f, "{}{}{}", seq_name, align_res, best)
+            return write!(f, "{}{}", align_res, best)
         }
 
         unreachable!()
@@ -150,7 +144,6 @@ mod sw_avx2
 {
     use std::mem::swap;
 
-    use crate::load::Seq;
     use crate::avx::avx2::{ M256Epu8, M256Epu16, max_epu8, max_epu16 };
     use crate::pairwise::{ AlignEnd, AlignErr, AlignFlag, AlignResult };
     
@@ -950,16 +943,13 @@ mod sw_avx2
     //     Ok( AlignEnd::U16 { var: opt_var, pos: opt_pos } )
     // }
 
-    pub fn smith_waterman_avx2<S>(d: &Seq, q:&Seq, go: u8, ge: u8, flag: &AlignFlag, f: S) -> Result<AlignResult, AlignErr>
+    pub fn smith_waterman_avx2<S>(d: &[u8], q:&[u8], go: u8, ge: u8, flag: &AlignFlag, f: S) -> Result<AlignResult, AlignErr>
     where
         S: Fn(u8, u8) -> i8
     {
-        let d_id = d.id.clone();
-        let q_id = q.id.clone();
-
-        let (d_seq, q_seq) = match (d.seq.is_ascii(), q.seq.is_ascii())
+        let (d_seq, q_seq) = match (d.is_ascii(), q.is_ascii())
         {
-            (true, true)   => (d.seq.to_ascii_uppercase(), q.seq.to_ascii_uppercase()),
+            (true, true)   => (d.to_ascii_uppercase(), q.to_ascii_uppercase()),
             (true, false)  => Err(AlignErr::IllegalChar
                 {
                     file: file!().to_string(),
@@ -997,7 +987,7 @@ mod sw_avx2
             if let AlignEnd::U8 { var, pos } = ext_end
             {
                 let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
-                return Ok( AlignResult { d_id, q_id, d_start: None, q_start: None, d_end, q_end,
+                return Ok( AlignResult { d_start: None, q_start: None, d_end, q_end,
                     d_best: None, q_best: None, opt, flag: AlignFlag::End
                 } )
             }
@@ -1005,7 +995,7 @@ mod sw_avx2
             if let AlignEnd::U16 { var, pos } = ext_end 
             {
                 let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
-                return Ok( AlignResult { d_id, q_id, d_start: None, q_start: None, d_end, q_end,
+                return Ok( AlignResult { d_start: None, q_start: None, d_end, q_end,
                     d_best: None, q_best: None, opt, flag: AlignFlag::End
                 } )
             }
@@ -1038,7 +1028,7 @@ mod sw_avx2
                 let d_start = Some(d_start);
                 let q_start = Some(q_start);
 
-                return Ok( AlignResult { d_id, q_id, d_start, q_start, d_end, q_end,
+                return Ok( AlignResult { d_start, q_start, d_end, q_end,
                     d_best, q_best, opt, flag: AlignFlag::Path } )
             }
             
@@ -1065,7 +1055,7 @@ mod sw_avx2
                 let d_start = Some(d_start);
                 let q_start = Some(q_start);
 
-                return Ok( AlignResult { d_id, q_id, d_start, q_start, d_end, q_end,
+                return Ok( AlignResult { d_start, q_start, d_end, q_end,
                     d_best, q_best, opt, flag: AlignFlag::Path } )
             }
 
@@ -1081,7 +1071,6 @@ mod sw_scalar
 {
     use std::mem::swap;
 
-    use crate::load::Seq;
     use crate::pairwise::{ AlignEnd, AlignErr, AlignFlag, AlignResult };
 
     fn sw_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, terminater: u32, score: &S) -> Result<AlignEnd, AlignErr>
@@ -1276,16 +1265,13 @@ mod sw_scalar
         (d_best, q_best)
     }
 
-    pub fn smith_waterman_scalar<S>(d: &Seq, q: &Seq, go: u32, ge: u32, flag: &AlignFlag, score: S) -> Result<AlignResult, AlignErr>
+    pub fn smith_waterman_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, flag: &AlignFlag, score: S) -> Result<AlignResult, AlignErr>
     where
         S: Fn(u8, u8) -> i8
     {
-        let d_id = d.id.clone();
-        let q_id = q.id.clone();
-
-        let (d_seq, q_seq) = match (d.seq.is_ascii(), q.seq.is_ascii())
+        let (d_seq, q_seq) = match (d.is_ascii(), q.is_ascii())
         {
-            (true, true)  => (d.seq.to_ascii_uppercase(), q.seq.to_ascii_uppercase()),
+            (true, true)  => (d.to_ascii_uppercase(), q.to_ascii_uppercase()),
             (true, false) => Err(AlignErr::IllegalChar
                 {
                     file: file!().to_string(),
@@ -1309,7 +1295,7 @@ mod sw_scalar
 
         if let AlignFlag::End = flag
         {
-            return Ok ( AlignResult { d_id, q_id, d_start: None, q_start: None, d_end, q_end,
+            return Ok ( AlignResult { d_start: None, q_start: None, d_end, q_end,
                 d_best: None, q_best: None, opt, flag: AlignFlag::End
             } )
         }
@@ -1338,7 +1324,7 @@ mod sw_scalar
             let d_start = Some(d_start+1);
             let q_start = Some(q_start+1);
 
-            return Ok ( AlignResult { d_id, q_id, d_start, q_start, d_end, q_end,
+            return Ok ( AlignResult { d_start, q_start, d_end, q_end,
                 d_best, q_best, opt, flag: AlignFlag::Path } )
         }
 
