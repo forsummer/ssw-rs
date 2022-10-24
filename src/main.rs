@@ -1,18 +1,38 @@
 mod cli;
 mod avx;
-mod load;
 mod score;
 mod pairwise;
 
 use std::time::Instant;
 
 use clap::Parser;
+use needletail::parse_fastx_file;
 
-use load::fastx_parser;
 use cli::{ Weight, CliArgs };
 use score::{ pam120, blosum50, blosum62 };
 use pairwise::{ AlignFlag, smith_waterman_avx2 };
-// use pairwise::smith_waterman_scalar;
+
+struct Seq { pub id: String, pub seq: Vec<u8> }
+
+fn fastx_parser<P>(path: P) -> Vec<Seq>
+where
+    P: AsRef<std::path::Path>
+{
+    let mut reader = parse_fastx_file(path)
+        .map_or_else(|err| panic!("{}", err.msg), |reader| reader);
+
+    let mut seq_set = Vec::new();
+    while let Some(item) = reader.next()
+    {
+        let record = item.map_or_else(|err| panic!("{}", err.msg), |r| r);
+        let id = String::from_utf8(record.id()
+                        .to_vec())
+                        .map_or_else(|err| panic!("{}", err), |s| s);
+        let seq = record.seq().to_vec();
+        seq_set.push(Seq { id, seq });
+    }
+    seq_set
+}
 
 fn main()
 {
@@ -47,8 +67,6 @@ fn main()
                     .expect("Overflow, d/q sequence is too long");
                 time_cost_total = time_cost_total + tick.elapsed().as_secs_f64();
                 res_set.push((&d.id, &q.id, res));
-                // let res = smith_waterman_scalar(d, q, go as u32, ge as u32, score)
-                //     .expect("Overflow, d/q sequence is too long");
             }
         }
 
