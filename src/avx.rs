@@ -6,6 +6,7 @@ pub mod avx2
     use std::arch::x86_64::_mm256_set1_epi8;
     use std::arch::x86_64::_mm256_set1_epi16;
     use std::arch::x86_64::_mm256_max_epu8;
+    use std::arch::x86_64::_mm256_max_epu16;
     use std::arch::x86_64::_mm256_adds_epu8;
     use std::arch::x86_64::_mm256_adds_epu16;
     use std::arch::x86_64::_mm256_subs_epu8;
@@ -369,29 +370,17 @@ pub mod avx2
         }
     }
 
-    macro_rules! max_epu8
+    pub fn max_epu8(a: M256Epu8, b: M256Epu8) -> M256Epu8
     {
-        ($x:expr) => ( $x );
-        ($x: expr, $($xs: expr), +)  => 
-        { 
-            {
-                unsafe { M256Epu8(std::arch::x86_64::_mm256_max_epu8($x.0, max_epu8!( $($xs.0),+ ))) }
-            }
-        };
+        let v = unsafe { _mm256_max_epu8(a.0, b.0) };
+        M256Epu8(v)
     }
-    pub (crate) use max_epu8;
 
-    macro_rules! max_epu16
+    pub fn max_epu16(a: M256Epu16, b: M256Epu16) -> M256Epu16
     {
-        ($x:expr) => ( $x );
-        ($x: expr, $($xs: expr), +)  => 
-        { 
-            { 
-                unsafe { M256Epu16(std::arch::x86_64::_mm256_max_epu16($x.0, max_epu16!( $($xs.0),+ ))) }
-            }
-        };
+        let v = unsafe { _mm256_max_epu16(a.0, b.0) };
+        M256Epu16(v)
     }
-    pub (crate) use max_epu16;
 }
 
 #[cfg(test)]
@@ -600,7 +589,6 @@ mod test_m256_epu8
     use std::arch::x86_64::_mm256_set_epi8;
 
     use super::avx2::M256Epu8;
-    use super::avx2::max_epu8;
 
     #[test]
     fn test_from_u8()
@@ -736,21 +724,6 @@ mod test_m256_epu8
         let b = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
             16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
         assert_eq!(a, b.to_vec());
-    }
-
-    #[test]
-    fn test_max()
-    {
-        let v1 = [0, 32, 30, 29, 28, 7, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 25];
-        let v2 = [255, 31, 30, 29, 120, 7, 26, 25, 24, 23, 22, 21, 20, 0, 18, 17,
-            16, 15, 1, 13, 12, 99, 10, 0, 8, 7, 6, 5, 4, 3, 7, 25];
-        let res = [255, 32, 30, 29, 120, 7, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 99, 10, 9, 8, 7, 6, 5, 4, 3, 7, 25];
-        let a = M256Epu8::from(&v1[..]);
-        let b = M256Epu8::from(&v2[..]);
-        let res = M256Epu8::from(&res[..]);
-        assert_eq!(max_epu8!(a, b), res);
     }
 
     #[test]
