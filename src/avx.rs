@@ -1,14 +1,12 @@
 pub mod avx2
 {    
-    use std::ops::Add;
-    use std::ops::Sub;
-    use std::ops::Index;
-    use std::fmt::Debug;
-    use std::mem::size_of;
-    use std::mem::transmute;
+    use std::mem::{ size_of, transmute };
     use std::arch::x86_64::__m256i;
     use std::arch::x86_64::_mm256_set_epi8;
+    use std::arch::x86_64::_mm256_set1_epi8;
+    use std::arch::x86_64::_mm256_set1_epi16;
     use std::arch::x86_64::_mm256_max_epu8;
+    use std::arch::x86_64::_mm256_max_epu16;
     use std::arch::x86_64::_mm256_adds_epu8;
     use std::arch::x86_64::_mm256_adds_epu16;
     use std::arch::x86_64::_mm256_subs_epu8;
@@ -16,8 +14,6 @@ pub mod avx2
     use std::arch::x86_64::_mm256_load_si256;
     use std::arch::x86_64::_mm256_cmpeq_epi8;
     use std::arch::x86_64::_mm256_cmpeq_epi16;
-    use std::arch::x86_64::_mm256_cmpgt_epi8;
-    use std::arch::x86_64::_mm256_cmpgt_epi16;
     use std::arch::x86_64::_mm256_shuffle_epi8;
     use std::arch::x86_64::_mm256_movemask_epi8;
     use std::arch::x86_64::_mm256_alignr_epi8;
@@ -29,7 +25,7 @@ pub mod avx2
     #[derive(Clone, Copy)]
     pub struct M256Epu16(pub __m256i);
 
-    impl From<&[u8]> for M256Epu8
+    impl std::convert::From<&[u8]> for M256Epu8
     {   
         fn from(s: &[u8]) -> Self
         {
@@ -43,7 +39,7 @@ pub mod avx2
         }
     }
 
-    impl From<&[u16]> for M256Epu16
+    impl std::convert::From<&[u16]> for M256Epu16
     {
         #[inline]
         fn from(s: &[u16]) -> Self
@@ -58,7 +54,7 @@ pub mod avx2
         }
     }
     
-    impl FromIterator<u8> for M256Epu8
+    impl std::iter::FromIterator<u8> for M256Epu8
     {
         #[inline]
         fn from_iter<T: IntoIterator<Item = u8>>(iter: T) -> Self
@@ -73,7 +69,7 @@ pub mod avx2
         }
     }
 
-    impl FromIterator<u16> for M256Epu16
+    impl std::iter::FromIterator<u16> for M256Epu16
     {
         #[inline]
         fn from_iter<T: IntoIterator<Item = u16>>(iter: T) -> Self
@@ -88,7 +84,7 @@ pub mod avx2
         }
     }
 
-    impl PartialEq for M256Epu8
+    impl std::cmp::PartialEq for M256Epu8
     {
         #[inline]
         fn eq(&self, other: &Self) -> bool
@@ -97,63 +93,16 @@ pub mod avx2
         }
     }
 
-    impl PartialEq for M256Epu16
+    impl std::cmp::PartialEq for M256Epu16
     {
         #[inline]
         fn eq(&self, other: &Self) -> bool
         {
-            unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi8(self.0, other.0)) == -1 }
+            unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi16(self.0, other.0)) == -1 }
         }
     }
 
-    impl PartialOrd for M256Epu8
-    {
-        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering>
-        {
-            if unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi8(self.0, other.0)) == -1 }
-            {
-                Some(std::cmp::Ordering::Equal)
-            }
-            else if unsafe { _mm256_movemask_epi8(_mm256_cmpgt_epi8(self.0, other.0)) == -1 }
-            {
-                Some(std::cmp::Ordering::Greater)
-            }
-            else if unsafe { _mm256_movemask_epi8(_mm256_cmpgt_epi8(other.0, self.0)) == -1 }
-            {
-                Some(std::cmp::Ordering::Less)
-            }
-            else
-            {
-                None
-            }
-        }
-    }
-
-    impl PartialOrd for M256Epu16
-    {
-        #[inline]
-        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering>
-        {
-            if unsafe {_mm256_movemask_epi8(_mm256_cmpeq_epi16(self.0, other.0)) == -1}
-            {
-                Some(std::cmp::Ordering::Equal)
-            }
-            else if unsafe {_mm256_movemask_epi8(_mm256_cmpgt_epi16(self.0, other.0)) == -1}
-            {
-                Some(std::cmp::Ordering::Greater)
-            }
-            else if unsafe {_mm256_movemask_epi8(_mm256_cmpgt_epi16(other.0, self.0)) == -1}
-            {
-                Some(std::cmp::Ordering::Less)
-            }
-            else
-            {
-                None
-            }
-        }
-    }
-
-    impl Add for M256Epu8
+    impl std::ops::Add for M256Epu8
     {
         type Output = M256Epu8;
 
@@ -164,7 +113,7 @@ pub mod avx2
         }
     }
 
-    impl Add for M256Epu16
+    impl std::ops::Add for M256Epu16
     {
         type Output = M256Epu16;
 
@@ -175,7 +124,7 @@ pub mod avx2
         }
     }
 
-    impl Sub for M256Epu8
+    impl std::ops::Sub for M256Epu8
     {
         type Output = M256Epu8;
 
@@ -186,7 +135,7 @@ pub mod avx2
         }
     }
 
-    impl Sub for M256Epu16
+    impl std::ops::Sub for M256Epu16
     {
         type Output = M256Epu16;
 
@@ -197,7 +146,7 @@ pub mod avx2
         }
     }
 
-    impl Index<usize> for M256Epu8
+    impl std::ops::Index<usize> for M256Epu8
     {
         type Output = u8;
 
@@ -212,7 +161,7 @@ pub mod avx2
         }
     }
 
-    impl Index<usize> for M256Epu16
+    impl std::ops::Index<usize> for M256Epu16
     {
         type Output = u16;
 
@@ -227,7 +176,7 @@ pub mod avx2
         }
     }
 
-    impl Debug for M256Epu8
+    impl std::fmt::Debug for M256Epu8
     {
         #[inline]
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
@@ -236,12 +185,44 @@ pub mod avx2
         }
     }
 
-    impl Debug for M256Epu16
+    impl std::fmt::Debug for M256Epu16
     {
         #[inline]
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
         {
             f.debug_list().entries(self.to_vec().iter().rev()).finish()
+        }
+    }
+
+    impl std::fmt::Display for M256Epu8
+    {
+        #[inline]
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+        {
+            let v = self.to_vec();
+            let output = format!("{:<} {:<} {:<} {:<} {:<} {:<} {:<} {:<} \
+                {:<} {:<} {:<} {:<} {:<} {:<} {:<} {:<} \
+                {:<} {:<} {:<} {:<} {:<} {:<} {:<} {:<} \
+                {:<} {:<} {:<} {:<} {:<} {:<} {:<} {:<}",
+                v[0],  v[1],  v[2],  v[3],  v[4],  v[5],  v[6],  v[7],
+                v[8],  v[9],  v[10], v[11], v[12], v[13], v[14], v[15],
+                v[16], v[17], v[18], v[19], v[20], v[21], v[22], v[23],
+                v[24], v[25], v[26], v[27], v[28], v[29], v[30], v[31]);
+            write!(f, "{}", output)
+        }
+    }
+
+    impl std::fmt::Display for M256Epu16
+    {
+        #[inline]
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+        {
+            let v = self.to_vec();
+            let output = format!("{:<} {:<} {:<} {:<} {:<} {:<} {:<} {:<} \
+                {:<} {:<} {:<} {:<} {:<} {:<} {:<} {:<}",
+                v[0], v[1], v[2],  v[3],  v[4],  v[5],  v[6],  v[7],
+                v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]);
+            write!(f, "{}", output)
         }
     }
 
@@ -252,6 +233,17 @@ pub mod avx2
         pub fn fill(item: u8) -> M256Epu8
         {
             unsafe { M256Epu8(_mm256_load_si256(&transmute::<[u8; 32], __m256i>([item; 32]))) }
+        }
+
+        #[inline]
+        pub fn anyelement_gt(&self, other: &M256Epu8) -> bool
+        {
+            unsafe
+            {
+                let tmp = _mm256_subs_epu8(self.0, other.0);
+                let mask = _mm256_cmpeq_epi8(tmp, _mm256_set1_epi8(0));
+                _mm256_movemask_epi8(mask) != -1
+            }
         }
 
         #[inline]
@@ -325,6 +317,17 @@ pub mod avx2
         }
 
         #[inline]
+        pub fn anyelement_gt(&self, other: &M256Epu16) -> bool
+        {
+            unsafe
+            {
+                let tmp = _mm256_subs_epu16(self.0, other.0);
+                let mask = _mm256_cmpeq_epi16(tmp, _mm256_set1_epi16(0));
+                _mm256_movemask_epi8(mask) != -1
+            }
+        }
+
+        #[inline]
         pub fn to_vec(self) -> Vec<u16>
         {
             unsafe { transmute::<__m256i, [u16; 16]>(self.0).to_vec() }
@@ -367,42 +370,24 @@ pub mod avx2
         }
     }
 
-    #[allow(unused_macros)]
-    macro_rules! max_epu8
+    pub fn max_epu8(a: M256Epu8, b: M256Epu8) -> M256Epu8
     {
-        ($x:expr) => ( $x );
-        ($x: expr, $($xs: expr), +)  => 
-        { 
-            {
-                unsafe
-                {
-                    M256Epu8(std::arch::x86_64::_mm256_max_epu8($x.0, max_epu8!( $($xs.0),+ )))
-                }
-            }
-        };
+        let v = unsafe { _mm256_max_epu8(a.0, b.0) };
+        M256Epu8(v)
     }
-    #[allow(unused_imports)]
-    pub (crate) use max_epu8;
 
-    macro_rules! max_epu16
+    pub fn max_epu16(a: M256Epu16, b: M256Epu16) -> M256Epu16
     {
-        ($x:expr) => ( $x );
-        ($x: expr, $($xs: expr), +)  => 
-        { 
-            {
-                unsafe
-                {
-                    M256Epu16(std::arch::x86_64::_mm256_max_epu16($x.0, max_epu16!( $($xs.0),+ )))
-                }
-            }
-        };
+        let v = unsafe { _mm256_max_epu16(a.0, b.0) };
+        M256Epu16(v)
     }
-    pub (crate) use max_epu16;
 }
 
 #[cfg(test)]
 mod test_m256_epu16
 {
+    use std::mem::transmute;
+    use std::arch::x86_64::__m256i;
     use std::arch::x86_64::_mm256_set_epi16;
     use std::arch::x86_64::_mm256_set1_epi16;
     use super::avx2::M256Epu16;
@@ -424,35 +409,11 @@ mod test_m256_epu16
     }
 
     #[test]
-    fn test_gt()
+    fn test_anyelement_gt()
     {
-        let a = M256Epu16(unsafe {_mm256_set_epi16(9, 1, 2, 4, 5, 8, 5, 1, 8, 20, 3, 8, 9, 9, 4, 9)});
-        let b = M256Epu16(unsafe {_mm256_set_epi16(8, 0, 1, 3, 4, 7, 1, 0, 7, 1, 2, 5, 8, 4, 3, 2)});
-        assert!(a > b);
-    }
-
-    #[test]
-    fn test_gt_false()
-    {
-        let a = M256Epu16(unsafe {_mm256_set_epi16(9, 1, 2, 4, 5, 8, 5, 1, 8, 20, 3, 8, 9, 9, 4, 9)});
-        let b = M256Epu16(unsafe {_mm256_set_epi16(8, 1, 1, 3, 4, 7, 1, 0, 7, 1, 2, 5, 8, 4, 3, 2)});
-        assert!(!(a > b));
-    }
-
-    #[test]
-    fn test_le()
-    {
-        let a = M256Epu16(unsafe {_mm256_set_epi16(9, 1, 2, 4, 5, 8, 5, 1, 8, 20, 3, 8, 9, 9, 4, 9)});
-        let b = M256Epu16(unsafe {_mm256_set_epi16(8, 0, 1, 3, 4, 7, 1, 0, 7, 1, 2, 5, 8, 4, 3, 2)});
-        assert!(b < a);
-    }
-
-    #[test]
-    fn test_le_false()
-    {
-        let a = M256Epu16(unsafe {_mm256_set_epi16(9, 1, 2, 4, 5, 8, 5, 1, 8, 20, 3, 8, 9, 9, 4, 9)});
-        let b = M256Epu16(unsafe {_mm256_set_epi16(8, 1, 1, 3, 4, 7, 1, 0, 7, 1, 2, 5, 8, 4, 3, 2)});
-        assert!(!(b < a));
+        let a = M256Epu16(unsafe { transmute::<[u16; 16], __m256i>([32768, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) });
+        let b = M256Epu16(unsafe { transmute::<[u16; 16], __m256i>([32767, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) });
+        assert!(a.anyelement_gt(&b));
     }
 
     #[test]
@@ -628,7 +589,6 @@ mod test_m256_epu8
     use std::arch::x86_64::_mm256_set_epi8;
 
     use super::avx2::M256Epu8;
-    use super::avx2::max_epu8;
 
     #[test]
     fn test_from_u8()
@@ -663,43 +623,14 @@ mod test_m256_epu8
     }
 
     #[test]
-    fn test_gt()
+    fn test_anyelement_gt()
     {
-        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
-        let b = unsafe { M256Epu8(_mm256_set_epi8(31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
-            15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
-        assert!(a > b);
-    }
+        let a = M256Epu8(unsafe { transmute::<[u8; 32], __m256i>([128, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]) });
+        let b = M256Epu8(unsafe { transmute::<[u8; 32], __m256i>([127, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]) });
 
-    #[test]
-    fn test_gt_false()
-    {
-        let a = unsafe { M256Epu8(_mm256_set_epi8(0, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
-        let b = unsafe { M256Epu8(_mm256_set_epi8(31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
-            15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
-    assert!(!(a > b));
-    }
-
-    #[test]
-    fn test_le()
-    {
-        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
-        let b = unsafe { M256Epu8(_mm256_set_epi8(33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2)) };
-        assert!(a < b);
-    }
-
-    #[test]
-    fn test_le_false()
-    {
-        let a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
-        let b = unsafe { M256Epu8(_mm256_set_epi8(0, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2)) };
-        assert!(!(a < b));
+        assert!(a.anyelement_gt(&b));
     }
 
     #[test]
@@ -796,23 +727,12 @@ mod test_m256_epu8
     }
 
     #[test]
-    fn test_max()
-    {
-        let a = unsafe { M256Epu8(_mm256_set_epi8(100, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
-        let b = unsafe { M256Epu8(_mm256_set_epi8(100, 31, 40, 97, 28, 27, 26, 25, 24, 23, 22, 45, 20, 19, 18, 17,
-            71, 80, 14, 13, 12, 11, 10, 9, 8, 7, 9, 5, 4, 3, 2, 1)) };
-        let res = unsafe { M256Epu8(_mm256_set_epi8(100, 31, 40, 97, 28, 27, 26, 25, 24, 23, 22, 45, 20, 19, 18, 17,
-            71, 80, 14, 13, 12, 11, 10, 9, 8, 7, 9, 5, 4, 3, 2, 1)) };
-        assert_eq!(max_epu8!(a, b), res);    
-    }
-
-    #[test]
     fn test_get_max_epu8()
     {
-        let a = unsafe { M256Epu8(_mm256_set_epi8(100, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 127)) };
-        assert_eq!(a.get_max(), 127);
+        let v = [0, 31, 30, 29, 28, 7, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 25];
+        let a = M256Epu8::from(&v[..]);
+        assert_eq!(a.get_max(), 31);
     }
 
     #[test]
@@ -835,10 +755,12 @@ mod test_m256_epu8
     #[test]
     fn test_shift_left_byte()
     {
-        let mut a = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
-        let b = unsafe { M256Epu8(_mm256_set_epi8(31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
+        let v1 = [32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+        let v2 = [0, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
+        16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2];
+        let mut a = M256Epu8::from(&v1[..]);
+        let b = M256Epu8::from(&v2[..]);
         a.shift_left_byte();
         assert_eq!(a, b);
     }
