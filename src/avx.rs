@@ -390,7 +390,9 @@ mod test_m256_epu16
     use std::arch::x86_64::__m256i;
     use std::arch::x86_64::_mm256_set_epi16;
     use std::arch::x86_64::_mm256_set1_epi16;
+
     use super::avx2::M256Epu16;
+    use super::avx2::max_epu16;
 
     #[test]
     fn test_eq()
@@ -408,6 +410,15 @@ mod test_m256_epu16
         assert_ne!(a, b);
     }
 
+    #[test]
+    fn test_max_epu16()
+    {
+        let a = unsafe { M256Epu16(_mm256_set_epi16(20, 3, 1, 0, 9, 10, 11, 0, 2, 14, 15, 87, 19, 1, 0, 1)) };
+        let b = unsafe { M256Epu16(_mm256_set_epi16(2, 3, 10, 4, 9, 10, 11, 0, 2, 14, 15, 87, 19, 1, 0, 1)) };
+        let res = unsafe { M256Epu16(_mm256_set_epi16(20, 3, 10, 4, 9, 10, 11, 0, 2, 14, 15, 87, 19, 1, 0, 1)) };
+        assert_eq!(max_epu16(a, b), res);
+    }
+    
     #[test]
     fn test_anyelement_gt()
     {
@@ -589,6 +600,7 @@ mod test_m256_epu8
     use std::arch::x86_64::_mm256_set_epi8;
 
     use super::avx2::M256Epu8;
+    use super::avx2::max_epu8;
 
     #[test]
     fn test_from_u8()
@@ -620,6 +632,21 @@ mod test_m256_epu8
         let b = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
             16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 0)) };
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn test_max_epu8()
+    {
+        let a = unsafe { M256Epu8(_mm256_set_epi8(20, 3, 1, 0, 9, 10, 11, 0, 2, 14, 15, 87, 19, 1, 0, 1,
+            8, 4, 5, 6 ,7, 7, 32, 64, 67, 99, 11, 23, 45, 12, 54, 56)) };
+
+        let b = unsafe { M256Epu8(_mm256_set_epi8(2, 3, 10, 4, 9, 10, 11, 0, 2, 14, 15, 87, 19, 1, 0, 1,
+            8, 4, 5, 6 ,7, 78, 32, 64, 67, 99, 11, 23, 43, 12, 54, 56)) };
+
+        let res = unsafe { M256Epu8(_mm256_set_epi8(20, 3, 10, 4, 9, 10, 11, 0, 2, 14, 15, 87, 19, 1, 0, 1,
+            8, 4, 5, 6 ,7, 78, 32, 64, 67, 99, 11, 23, 45, 12, 54, 56)) };
+
+        assert_eq!(max_epu8(a, b), res);
     }
 
     #[test]
