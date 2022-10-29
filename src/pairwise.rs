@@ -16,6 +16,22 @@ macro_rules! min
     };
 }
 
+macro_rules! get_unchecked
+{
+    ($v:expr, $i:expr) =>
+    {
+        unsafe { $v.get_unchecked($i) }
+    };
+}
+
+macro_rules! get_mut_unchecked
+{
+    ($v:expr, $i:expr) =>
+    {
+        unsafe { $v.get_unchecked_mut($i) }
+    };
+}
+
 pub enum AlignFlag { End, Path }
 
 enum AlignEnd
