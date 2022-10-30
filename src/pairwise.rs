@@ -386,14 +386,14 @@ mod sw_avx2
 
         if terminater == 0
         {
-            for (i, r) in d.iter().enumerate()
+            for (i, r) in d.iter().copied().enumerate()
             {
                 f.zero_out();
 
                 let mut prev_h = *h_store.last().unwrap();
                 prev_h.shift_left_byte();
 
-                let profile_col = get_unchecked!(profile, (*r- 65) as usize);
+                let profile_col = get_unchecked!(profile, (r - 65) as usize);
                 for j in 0..seg_num
                 {
                     let score = *get_unchecked!(profile_col,  j);
