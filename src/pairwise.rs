@@ -719,7 +719,7 @@ mod sw_avx2
 
         if terminater == 0
         {
-            for (i, r) in d.iter().enumerate()
+            for (i, r) in d.iter().copied().enumerate()
             {
                 f.zero_out();
 
@@ -728,7 +728,7 @@ mod sw_avx2
 
                 for j in 0..seg_num
                 {
-                    let score = profile[(*r - 65) as usize][j];
+                    let score = profile[(r - 65) as usize][j];
                     let h = max_epu16(max_epu16(prev_h + score - bias, e_store[j]), f);
                     let e = max_epu16(h - go, e_store[j] - ge);
                     f = max_epu16(h - go, f - ge);
