@@ -370,12 +370,14 @@ pub mod avx2
         }
     }
 
+    #[inline]
     pub fn max_epu8(a: M256Epu8, b: M256Epu8) -> M256Epu8
     {
         let v = unsafe { _mm256_max_epu8(a.0, b.0) };
         M256Epu8(v)
     }
 
+    #[inline]
     pub fn max_epu16(a: M256Epu16, b: M256Epu16) -> M256Epu16
     {
         let v = unsafe { _mm256_max_epu16(a.0, b.0) };
