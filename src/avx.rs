@@ -325,16 +325,6 @@ pub mod avx2
         }
 
         #[inline]
-        fn shift_left_byte(&mut self)
-        {
-            unsafe 
-            {
-                let mask = _mm256_permute2x128_si256::<8>(self.0, self.0);
-                *self = M256Epu8(_mm256_alignr_epi8::<15>(self.0, mask))
-            }
-        }
-
-        #[inline]
         pub fn zero_out(&mut self)
         {
             *self = unsafe { M256Epu8(_mm256_permute2x128_si256::<255>(self.0, self.0)) }
@@ -385,16 +375,6 @@ pub mod avx2
             let item = M256Epu16::fill(other);
             let mask = unsafe { _mm256_movemask_epi8(_mm256_cmpeq_epi16(self.0, item.0)) };
             mask != 0
-        }
-
-        #[inline]
-        fn shift_left_bytex2(&mut self)
-        {
-            unsafe
-            {
-                let mask = _mm256_permute2x128_si256::<8>(self.0, self.0);
-                *self = M256Epu16(_mm256_alignr_epi8::<14>(self.0, mask))
-            }
         }
 
         #[inline]
