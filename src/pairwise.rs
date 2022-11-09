@@ -391,7 +391,7 @@ mod sw_avx2
                 f.zero_out();
 
                 let mut prev_h = *h_store.last().unwrap();
-                prev_h.shift_left_byte();
+                prev_h = prev_h << 1;
 
                 let profile_col = get_unchecked!(profile, (r - 65) as usize);
                 for j in 0..seg_num
@@ -415,7 +415,7 @@ mod sw_avx2
                     prev_h = *get_unchecked!(h_store, j);
                 }
 
-                f.shift_left_byte();
+                f = f << 1;
                 let mut j = 0;
                 while f.anyelement_gt(&(*get_unchecked!(h_buffer, j) - go))
                 {
@@ -432,7 +432,7 @@ mod sw_avx2
 
                     if j+1 >= seg_num
                     {
-                        f.shift_left_byte();
+                        f = f << 1;
                         j = 0;
                     }
                 }
@@ -476,7 +476,7 @@ mod sw_avx2
             {
                 f.zero_out();
                 let mut prev_h = *h_store.last().unwrap();
-                prev_h.shift_left_byte();
+                prev_h = prev_h << 1;
 
                 let profile_col = get_unchecked!(profile, (r- 65) as usize);
                 for j in 0..seg_num
@@ -500,7 +500,7 @@ mod sw_avx2
                     prev_h = *get_unchecked!(h_store, j);
                 }
 
-                f.shift_left_byte();
+                f = f << 1;
                 let mut j = 0;
                 while f.anyelement_gt(&(*get_unchecked!(h_buffer, j) - go))
                 {
@@ -517,7 +517,7 @@ mod sw_avx2
 
                     if j+1 >= seg_num
                     {
-                        f.shift_left_byte();
+                        f = f << 1;
                         j = 0;
                     }
                 }
@@ -724,7 +724,7 @@ mod sw_avx2
                 f.zero_out();
 
                 let mut prev_h = *h_store.last().unwrap();
-                prev_h.shift_left_bytex2();
+                prev_h = prev_h << 1;
 
                 for j in 0..seg_num
                 {
@@ -738,7 +738,7 @@ mod sw_avx2
                     prev_h = h_store[j];
                 }
 
-                f.shift_left_bytex2();
+                f = f << 1;
                 let mut j = 0;
                 while f.anyelement_gt(&(h_buffer[j] - go))
                 {
@@ -748,7 +748,7 @@ mod sw_avx2
 
                     if j+1 >= seg_num
                     {
-                        f.shift_left_bytex2();
+                        f = f << 1;
                         j = 0;
                     }
                 }
@@ -794,7 +794,7 @@ mod sw_avx2
                 f.zero_out();
 
                 let mut prev_h = *h_store.last().unwrap();
-                prev_h.shift_left_bytex2();
+                prev_h = prev_h << 1;
 
                 for j in 0..seg_num
                 {
@@ -808,7 +808,7 @@ mod sw_avx2
                     prev_h = h_store[j];
                 }
 
-                f.shift_left_bytex2();
+                f = f << 1;
                 let mut j = 0;
                 while f.anyelement_gt(&(h_buffer[j] - go))
                 {
@@ -818,7 +818,7 @@ mod sw_avx2
 
                     if j+1 >= seg_num
                     {
-                        f.shift_left_bytex2();
+                        f = f << 1;
                         j = 0;
                     }
                 }

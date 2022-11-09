@@ -146,6 +146,40 @@ pub mod avx2
         }
     }
 
+    impl std::ops::Shl<usize> for M256Epu8
+    {
+        type Output = M256Epu8;
+
+        fn shl(self, rhs: usize) -> Self::Output
+        {
+            let mut v = self;
+            let shift_left = |v: &mut M256Epu8| unsafe
+            {
+                let mask = _mm256_permute2x128_si256::<8>(v.0, v.0);
+                *v = M256Epu8(_mm256_alignr_epi8::<15>(v.0, mask))
+            };
+            for _c in 0..rhs { shift_left(&mut v) }
+            v
+        }
+    }
+
+    impl std::ops::Shl<usize> for M256Epu16
+    {
+        type Output = M256Epu16;
+
+        fn shl(self, rhs: usize) -> Self::Output
+        {
+            let mut v = self;
+            let shift_left = |v: &mut M256Epu16| unsafe
+            {
+                let mask = _mm256_permute2x128_si256::<8>(v.0, v.0);
+                *v = M256Epu16(_mm256_alignr_epi8::<14>(v.0, mask))
+            };
+            for _c in 0..rhs { shift_left(&mut v); }
+            v
+        }
+    }
+
     impl std::ops::Index<usize> for M256Epu8
     {
         type Output = u8;
@@ -291,7 +325,7 @@ pub mod avx2
         }
 
         #[inline]
-        pub fn shift_left_byte(&mut self)
+        fn shift_left_byte(&mut self)
         {
             unsafe 
             {
@@ -354,7 +388,7 @@ pub mod avx2
         }
 
         #[inline]
-        pub fn shift_left_bytex2(&mut self)
+        fn shift_left_bytex2(&mut self)
         {
             unsafe
             {
@@ -536,12 +570,17 @@ mod test_m256_epu16
     }
 
     #[test]
-    fn test_shift_left_bytex2()
+    fn test_shl()
     {
-        let mut a = unsafe { M256Epu16(_mm256_set_epi16(16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
-        let res = unsafe { M256Epu16(_mm256_set_epi16( 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
-        a.shift_left_bytex2();
-        assert_eq!(a, res);
+        let v = unsafe { M256Epu16(_mm256_set_epi16(16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
+        
+        let res0 = unsafe { M256Epu16(_mm256_set_epi16( 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
+        let res1 = unsafe { M256Epu16(_mm256_set_epi16( 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0)) };
+        let res2 = unsafe { M256Epu16(_mm256_set_epi16( 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0)) };
+
+        assert_eq!(v << 1, res0);
+        assert_eq!(v << 2, res1);
+        assert_eq!(v << 3, res2);
     }
 
     #[test]
@@ -782,15 +821,31 @@ mod test_m256_epu8
     }
 
     #[test]
-    fn test_shift_left_byte()
+    fn test_shl()
     {
-        let v1 = [32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-            16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-        let v2 = [0, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17,
-        16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2];
-        let mut a = M256Epu8::from(&v1[..]);
-        let b = M256Epu8::from(&v2[..]);
-        a.shift_left_byte();
-        assert_eq!(a, b);
+        let v = unsafe { M256Epu8(_mm256_set_epi8(32, 31, 30, 29, 28, 27, 26, 25,
+            24, 23, 22, 21, 20, 19, 18, 17,
+            16, 15, 14, 13, 12, 11, 10, 9,
+            8, 7, 6, 5, 4, 3, 2, 1)) };
+
+        let res0 = unsafe { M256Epu8(_mm256_set_epi8(31, 30, 29, 28, 27, 26, 25, 24,
+            23, 22, 21, 20, 19, 18,17, 16,
+            15, 14, 13, 12, 11, 10, 9, 8,
+            7, 6, 5, 4, 3, 2, 1, 0)) };
+
+        let res1 = unsafe { M256Epu8(_mm256_set_epi8(30, 29, 28, 27, 26, 25, 24,
+            23, 22, 21, 20, 19, 18,17, 16,
+            15, 14, 13, 12, 11, 10, 9, 8,
+            7, 6, 5, 4, 3, 2, 1, 0, 0)) };
+
+        let res2 = unsafe { M256Epu8(_mm256_set_epi8(29, 28, 27, 26, 25, 24,
+            23, 22, 21, 20, 19, 18,17, 16,
+            15, 14, 13, 12, 11, 10, 9, 8,
+            7, 6, 5, 4, 3, 2, 1, 0, 0, 0)) };
+
+        assert_eq!(v << 1, res0);
+        assert_eq!(v << 2, res1);
+        assert_eq!(v << 3, res2);
+
     }
 }
