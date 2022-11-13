@@ -260,7 +260,6 @@ pub mod avx2
         }
     }
 
-    #[allow(dead_code)]
     impl M256Epu8
     {
         #[inline]
@@ -331,7 +330,6 @@ pub mod avx2
         }
     }
 
-    #[allow(dead_code)]
     impl M256Epu16
     {
         #[inline]
