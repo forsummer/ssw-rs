@@ -357,10 +357,32 @@ pub mod avx2
             unsafe { transmute::<__m256i, [u16; 16]>(self.0).to_vec() }
         }
 
+        // #[inline]
+        // pub fn get_max(&self) -> u16
+        // {
+        //     *self.to_vec().iter().max().unwrap()
+        // }
+
         #[inline]
         pub fn get_max(&self) -> u16
         {
-            *self.to_vec().iter().max().unwrap()
+            const IMM: i32 = 1;
+            let mut tmp = unsafe { _mm256_max_epu16(self.0, _mm256_permute2x128_si256::<IMM>(self.0, self.0)) };
+
+            let mask = unsafe 
+            { [ _mm256_set_epi8(-127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127,
+                    7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8),
+                _mm256_set_epi8(-127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127,
+                    -127, -127, -127, -127, -127, -127, -127, -127, 3, 2, 1, 0, 7, 6, 5, 4),
+                _mm256_set_epi8(-127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127,
+                    -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, 1, 0, 3, 2) ]
+            };
+
+            for m in mask.iter()
+            {
+                tmp = unsafe { _mm256_max_epu16(tmp, _mm256_shuffle_epi8(tmp, *m)) }
+            }
+            unsafe { *transmute::<*const __m256i, *const u16>(&tmp as *const __m256i) }
         }
 
         #[inline]
