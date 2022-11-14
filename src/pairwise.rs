@@ -1315,7 +1315,7 @@ mod sw_scalar
         (d_best, q_best)
     }
 
-    pub fn smith_waterman_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, flag: &AlignFlag, score: S) -> Result<AlignResult, AlignErr>
+    pub fn smith_waterman_scalar<S>(d: &[u8], q: &[u8], go: u8, ge: u8, flag: &AlignFlag, score: S) -> Result<AlignResult, AlignErr>
     where
         S: Fn(u8, u8) -> i8
     {
@@ -1336,6 +1336,9 @@ mod sw_scalar
                 })?,
             _ => unreachable!(),
         };
+
+        let go = go as u32;
+        let ge = ge as u32;
 
         let (opt, (d_end, q_end)) = match sw_scalar(&d_seq, &q_seq, go, ge, 0, &score)?
         {
