@@ -430,7 +430,8 @@ mod sw_avx2
 
                     f = f - ge;
 
-                    if j+1 >= seg_num
+                    j = j + 1;
+                    if j >= seg_num
                     {
                         f = f << 1;
                         j = 0;
@@ -515,7 +516,8 @@ mod sw_avx2
                     
                     f = f - ge;
 
-                    if j+1 >= seg_num
+                    j = j + 1;
+                    if j >= seg_num
                     {
                         f = f << 1;
                         j = 0;
@@ -746,7 +748,8 @@ mod sw_avx2
                     e_store[j] = max_epu16(e_store[j], h_buffer[j] - go);
                     f = f - ge;
 
-                    if j+1 >= seg_num
+                    j = j + 1;
+                    if j >= seg_num
                     {
                         f = f << 1;
                         j = 0;
@@ -816,7 +819,8 @@ mod sw_avx2
                     e_store[j] = max_epu16(e_store[j], h_buffer[j] - go);
                     f = f - ge;
 
-                    if j+1 >= seg_num
+                    j = j + 1;
+                    if j >= seg_num
                     {
                         f = f << 1;
                         j = 0;
