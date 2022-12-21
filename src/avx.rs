@@ -17,6 +17,7 @@ pub mod avx2
     use std::arch::x86_64::_mm256_shuffle_epi8;
     use std::arch::x86_64::_mm256_movemask_epi8;
     use std::arch::x86_64::_mm256_alignr_epi8;
+    use std::arch::x86_64::_mm256_xor_si256;
     use std::arch::x86_64::_mm256_permute2x128_si256;
 
     #[derive(Clone, Copy)]
@@ -326,7 +327,8 @@ pub mod avx2
         #[inline]
         pub fn zero_out(&mut self)
         {
-            *self = unsafe { M256Epu8(_mm256_permute2x128_si256::<255>(self.0, self.0)) }
+            *self = unsafe { M256Epu8(_mm256_xor_si256(self.0, self.0)) }
+            // *self = unsafe { M256Epu8(_mm256_permute2x128_si256::<255>(self.0, self.0)) }
         }
     }
 
@@ -400,7 +402,8 @@ pub mod avx2
         #[inline]
         pub fn zero_out(&mut self)
         {
-            *self = unsafe { M256Epu16(_mm256_permute2x128_si256::<255>(self.0, self.0)) }
+            *self = unsafe { M256Epu16(_mm256_xor_si256(self.0, self.0)) }
+            // *self = unsafe { M256Epu16(_mm256_permute2x128_si256::<255>(self.0, self.0)) }
         }
     }
 
