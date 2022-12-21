@@ -328,7 +328,6 @@ pub mod avx2
         pub fn zero_out(&mut self)
         {
             *self = unsafe { M256Epu8(_mm256_xor_si256(self.0, self.0)) }
-            // *self = unsafe { M256Epu8(_mm256_permute2x128_si256::<255>(self.0, self.0)) }
         }
     }
 
@@ -356,12 +355,6 @@ pub mod avx2
         {
             unsafe { transmute::<__m256i, [u16; 16]>(self.0).to_vec() }
         }
-
-        // #[inline]
-        // pub fn get_max(&self) -> u16
-        // {
-        //     *self.to_vec().iter().max().unwrap()
-        // }
 
         #[inline]
         pub fn get_max(&self) -> u16
@@ -403,7 +396,6 @@ pub mod avx2
         pub fn zero_out(&mut self)
         {
             *self = unsafe { M256Epu16(_mm256_xor_si256(self.0, self.0)) }
-            // *self = unsafe { M256Epu16(_mm256_permute2x128_si256::<255>(self.0, self.0)) }
         }
     }
 
