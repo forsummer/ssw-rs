@@ -102,13 +102,15 @@ fn main()
                 let tick = Instant::now();
                 let res = smith_waterman_avx2(&d.seq, &q.seq, go, ge, &flag, &score).expect("Overflow, d/q sequence is too long");
                 time_cost_total = time_cost_total + tick.elapsed().as_secs_f64();
-                res_set.push(res);
+                res_set.push((&d.id, &q.id, res));
             }
         }
 
         for res in res_set.iter()
         {
-            println!("{}", res);
+            println!("d_id: {}", res.0);
+            println!("q_id: {}", res.1);
+            println!("{}", res.2);
         }
         println!("time-cost: {}s", time_cost_total);
     }
