@@ -1,6 +1,6 @@
 mod blosum
 {
-    pub fn blosum62() -> Box<dyn Fn(u8, u8) -> i8>
+    pub fn blosum62() -> Box<dyn Fn(u8, u8) -> Option<i8>>
     {
         let mat = [[  4, -2,  0, -2, -1, -2,  0, -2, -1, -1, -1, -1, -1, -2,  0, -1, -1, -1,  1,  0,  0,  0, -3, -2, -1,  0, -4 ],
             [ -2,  4, -3,  4,  1, -3, -1,  0, -3, -4,  0, -4, -3,  3, -1, -2,  0, -1,  0, -1, -1, -3, -4, -3,  1, -1, -4 ],
@@ -34,12 +34,13 @@ mod blosum
         {
             let i = if r1 == b'*' { 26 } else { (r1 - 65) as usize };
             let j = if r2 == b'*' { 26 } else { (r2 - 65) as usize };
-            mat[i][j]
+            let res = if i >= 27 || j >= 27 { None } else { Some(mat[i][j]) };
+            res
         };
         Box::new(score)
     }
     
-    pub fn blosum50() -> Box<dyn Fn(u8, u8) -> i8>
+    pub fn blosum50() -> Box<dyn Fn(u8, u8) -> Option<i8>>
     {
         let mat = [[  5, -2, -1, -2, -1, -3,  0, -2, -1,  0, -1, -2, -1, -1,  0, -1, -1, -2,  1,  0,  0,  0, -3, -1, -2, -1, -5 ],
             [ -2,  5, -3,  5,  1, -4, -1,  0, -4,  0,  0, -4, -3,  4,  0, -2,  0, -1,  0,  0,  0, -4, -5, -1, -3,  2, -5 ],
@@ -72,7 +73,8 @@ mod blosum
         {
             let i = if r1 == b'*' { 26 } else { (r1 - 65) as usize };
             let j = if r2 == b'*' { 26 } else { (r2 - 65) as usize };
-            mat[i][j]
+            let res = if i >= 27 || j >= 27 { None } else { Some(mat[i][j]) };
+            res
         };
         Box::new(score)
     }
@@ -80,7 +82,7 @@ mod blosum
 
 mod pam
 {
-    pub fn pam120() -> Box<dyn Fn(u8, u8) -> i8>
+    pub fn pam120() -> Box<dyn Fn(u8, u8) -> Option<i8>>
     {
         let mat = [[  3,  0, -3,  0,  0, -4,  1, -3, -1, -2, -2, -3, -2, -1, -1,  1, -1, -3,  1,  1, -1,  0, -7, -4, -1, -1, -8 ],
             [  0,  4, -6,  4,  3, -5,  0,  1, -3, -4,  0, -4, -4,  3, -1, -2,  0, -2,  0,  0, -1, -3, -6, -3,  2, -1, -8 ],
@@ -113,7 +115,8 @@ mod pam
         {
             let i = if r1 == b'*' { 26 } else { (r1 - 65) as usize };
             let j = if r2 == b'*' { 26 } else { (r2 - 65) as usize };
-            mat[i][j]
+            let res = if i >= 27 || j >= 27 { None } else { Some(mat[i][j]) };
+            res
         };
         Box::new(score)
     }

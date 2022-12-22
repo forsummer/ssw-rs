@@ -49,7 +49,7 @@ fn main()
     {
         let miss_ = -(cli_args._miss.abs());
         let match_ = cli_args._match.abs();
-        let score = |r1, r2| if r1 == r2 { match_ } else { miss_ };
+        let score = |r1, r2| if r1 == r2 { Some(match_) } else { Some(miss_) };
         let flag = match cli_args.print_path
         {
             true  => AlignFlag::Path,
