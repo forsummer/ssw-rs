@@ -588,24 +588,41 @@ mod sw_avx2
                 let mut prev_h = *h_store.last().unwrap();
                 prev_h = prev_h << 1;
 
+                let profile_col = get_unchecked!(profile, (r - 65) as usize);
                 for j in 0..seg_num
                 {
-                    let score = profile[(r - 65) as usize][j];
-                    let h = max_epu16(max_epu16(prev_h + score - bias, e_store[j]), f);
-                    let e = max_epu16(h - go, e_store[j] - ge);
-                    f = max_epu16(h - go, f - ge);
+                    let score = *get_unchecked!(profile_col, j);
+                    let prev_e = *get_unchecked!(e_store, j);
 
-                    e_store[j] = e;
-                    h_buffer[j] = h;
-                    prev_h = h_store[j];
+                    let h = max_epu16(max_epu16(prev_h + score - bias, prev_e), f);
+
+                    let h_sub_go = h - go;
+
+                    let e = max_epu16(h_sub_go, prev_e - ge);
+                    f = max_epu16(h_sub_go, f - ge);
+
+                    let e_store_mut_ref = get_mut_unchecked!(e_store, j);
+                    *e_store_mut_ref = e;
+
+                    let h_buffer_mut_ref = get_mut_unchecked!(h_buffer, j);
+                    *h_buffer_mut_ref = h;
+
+                    prev_h = *get_unchecked!(h_store, j);
                 }
 
                 f = f << 1;
                 let mut j = 0;
-                while f.anyelement_gt(&(h_buffer[j] - go))
+                while f.anyelement_gt(&(*get_unchecked!(h_buffer, j) - go))
                 {
-                    h_buffer[j] = max_epu16(f, h_buffer[j]);
-                    e_store[j] = max_epu16(e_store[j], h_buffer[j] - go);
+                    let h_buffer_uncorrect = *get_unchecked!(h_buffer, j);
+                    let h_buffer_mut_ref = get_mut_unchecked!(h_buffer, j);
+                    *h_buffer_mut_ref = max_epu16(f, h_buffer_uncorrect);
+
+                    let h_buffer_correct = *get_unchecked!(h_buffer, j);
+                    let e_store_uncorrect = *get_unchecked!(e_store, j);
+                    let e_store_mut_ref = get_mut_unchecked!(e_store, j);
+                    *e_store_mut_ref = max_epu16(e_store_uncorrect, h_buffer_correct - go);
+
                     f = f - ge;
 
                     j = j + 1;
