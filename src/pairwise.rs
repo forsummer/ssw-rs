@@ -45,6 +45,7 @@ pub enum AlignErr
 {
     OverFlow    { file: String, line: usize, msg: String },
     IllegalChar { file: String, line: usize, msg: String },
+    GetScoreErr { file: String, line: usize, msg: String },
 }
 
 impl std::fmt::Debug for AlignErr
@@ -55,6 +56,7 @@ impl std::fmt::Debug for AlignErr
         {
             AlignErr::OverFlow    { file, line, msg } => (file, line, msg),
             AlignErr::IllegalChar { file, line, msg } => (file, line, msg),
+            AlignErr::GetScoreErr { file, line, msg } => (file, line, msg),
         };
 
         f.debug_struct("Error")
@@ -71,8 +73,9 @@ impl std::fmt::Display for AlignErr
     {
         let (file, line, msg) = match self
         {
-            AlignErr::OverFlow { file, line, msg }    => (file, line, msg),
+            AlignErr::OverFlow    { file, line, msg } => (file, line, msg),
             AlignErr::IllegalChar { file, line, msg } => (file, line, msg),
+            AlignErr::GetScoreErr { file, line, msg } => (file, line, msg),
         };
 
         write!(f, "error: {} in {}, {}", msg, file, line)
@@ -171,9 +174,9 @@ mod sw_avx2
     
     enum ProfileType { Epu8, Epu16 }
 
-    fn query_profile<S>(d: &[u8], q: &[u8], p: ProfileType, f: S) -> Profile
+    fn query_profile<S>(d: &[u8], q: &[u8], p: ProfileType, f: S) -> Result<Profile, AlignErr>
     where
-        S: Fn(u8, u8) -> i8
+        S: Fn(u8, u8) -> Option<i8>
     {
         let mut bitmap_d: Vec<u8> = vec![0; 27];
         d.iter().for_each(|r| bitmap_d[(*r - 65) as usize] = 1);
@@ -191,7 +194,18 @@ mod sw_avx2
         {
             for r2 in alphabet_q.iter()
             {
-                bias = min!(bias, f(*r1, *r2));
+                let pair_score = match f(*r1, *r2)
+                {
+                    None => Err(
+                        AlignErr::GetScoreErr
+                        { 
+                            file: file!().to_string(),
+                            line: line!() as usize,
+                            msg: "Can not get pair score with this scoring function".to_string() 
+                        })?,
+                    Some(score) => score,
+                };
+                bias = min!(bias, pair_score);
             }
         }
         bias = bias.abs();
@@ -202,7 +216,7 @@ mod sw_avx2
             {
                 (b'*', _)      => 0,
                 (_, b'*')      => 0,
-                (a, b) => f(a, b) + bias,
+                (a, b) => f(a, b).unwrap() + bias,
             }
         };
 
@@ -247,7 +261,7 @@ mod sw_avx2
                 }
                 profile[(residue - 65) as usize] = score_set;
             }
-            return Profile::Word { bias: bias.unsigned_abs() as u16, profile }
+            return Ok(Profile::Word { bias: bias.unsigned_abs() as u16, profile })
         }
         
         if seg_len == 32
@@ -267,7 +281,7 @@ mod sw_avx2
                 }
                 profile[(residue - 65) as usize] = score_set;
             }
-            return Profile::Byte { bias: bias.unsigned_abs(), profile }
+            return Ok(Profile::Byte { bias: bias.unsigned_abs(), profile })
         }
 
         unreachable!()
@@ -275,7 +289,7 @@ mod sw_avx2
 
     fn banded_sw<S>(d: &[u8], q: &[u8], go: u8, ge: u8, score: &S) -> (Vec<u8>, Vec<u8>)
     where
-        S: Fn(u8, u8) -> i8
+        S: Fn(u8, u8) -> Option<i8>
     {
         let d_len = d.len();
         let q_len = q.len();
@@ -300,7 +314,7 @@ mod sw_avx2
                 let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
                 let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
 
-                let pair = score(d[i-1], q[j-1]);
+                let pair = score(d[i-1], q[j-1]).unwrap();
                 let ext = match pair > 0
                 {
                     true  => prev_h[j-1].saturating_add(pair.unsigned_abs() as u16),
@@ -999,7 +1013,7 @@ mod sw_avx2
 
     pub fn smith_waterman_avx2<S>(d: &[u8], q:&[u8], go: u8, ge: u8, flag: &AlignFlag, f: S) -> Result<AlignResult, AlignErr>
     where
-        S: Fn(u8, u8) -> i8
+        S: Fn(u8, u8) -> Option<i8>
     {
         let (d_seq, q_seq) = match (d.is_ascii(), q.is_ascii())
         {
@@ -1024,13 +1038,13 @@ mod sw_avx2
                 })?,
         };
 
-        let profile_u8 = query_profile(&d_seq, &q_seq, ProfileType::Epu8, &f);
+        let profile_u8 = query_profile(&d_seq, &q_seq, ProfileType::Epu8, &f)?;
         let ext_end = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile_u8)
         {
             Ok(res) => res,
             Err(AlignErr::OverFlow {..}) => 
             {
-                let profile_u16 = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f);
+                let profile_u16 = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f)?;
                 ssw_word(&d_seq, &q_seq, go, ge, 0, &profile_u16)?
             },
             _ => unreachable!(),
@@ -1068,7 +1082,7 @@ mod sw_avx2
                 d_splited_rev.reverse();
                 q_splited_rev.reverse();
                 
-                let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu8, &f);
+                let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu8, &f)?;
                 let (d_start, q_start) = match ssw_byte(&d_splited_rev, &q_splited_rev, go, ge, var, &profile_rev)?
                 {
                     AlignEnd::U8 { pos, .. } => (d_end - pos.0, q_end - pos.1),
@@ -1095,7 +1109,7 @@ mod sw_avx2
                 d_splited_rev.reverse();
                 q_splited_rev.reverse();
 
-                let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu16, &f);
+                let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu16, &f)?;
                 let (d_start, q_start) = match ssw_word(&d_splited_rev, &q_splited_rev, go, ge, var, &profile_rev)?
                 {
                     AlignEnd::U16 { pos, .. } => (d_end - pos.0, q_end - pos.1),
