@@ -1,12 +1,9 @@
-mod avx;
-mod score;
-mod pairwise;
-
 use std::time::Instant;
 use clap::{ Parser, ValueEnum };
 use needletail::parse_fastx_file;
-use score::{ pam120, blosum50, blosum62 };
-use pairwise::{ AlignFlag, smith_waterman_avx2 };
+
+use ssw::score::{ pam120, blosum50, blosum62 };
+use ssw::pairwise::{ AlignFlag, smith_waterman_avx2 };
 
 #[derive(ValueEnum, Clone)]
 enum Weight { Pam120, Blosum50, Blosum62 }
