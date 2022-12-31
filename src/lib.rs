@@ -57,5 +57,10 @@
 //! ```
 
 mod avx;
+
+/// Provide wrapping of scoring matrix, such as **blosum50**, **blosum62** and **pam120**.
+/// (The scoring matrix is wrapped into a closure like `Fn(u8, u8) -> Option<i8>`)
 pub mod score;
+
+
 pub mod pairwise;
