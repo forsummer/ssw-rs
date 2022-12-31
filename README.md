@@ -1,9 +1,9 @@
 ## SSW: Fastest Striped-Smith-Waterman algorithm implementation accelerated by AVX2
 
 ### Overview
-SSW is the most fastest Rust implementation of smith-waterman algorithm, which use `AVX2` instruction to parallelizez the algorithm in data-level. It can be used to alignment two sequences, return **best aignment score**, **alignment end** and **optimal traceback path**. This library provides the following two kinds of API in Rust:
+SSW is the most fastest Rust implementation of smith-waterman algorithm, which use **AVX2** instruction to parallelizez the algorithm in data-level. It can be used to alignment two sequences, return **best aignment score**, **alignment end** and **optimal traceback path**. This library provides the following two kinds of API in Rust:
 
-- Smith-Waterman(accelerated by `AVX2`) implementation in Rust
+- Smith-Waterman(accelerated by **AVX2**) implementation in Rust
 - Wrapping of the scoring matrix: `blosum50`, `blosum62` and `pam120`
 
 We also provide a command line software name `simth-waterman` in this package which can alignment protein and genome sequence directly.
@@ -103,7 +103,7 @@ OPTIONS:
 
 ### Warning
 
-Currently the ssw library is only available for **x86_64** platforms that support the **AVX2** instruction set.
+Currently the `ssw` library is only available for **x86_64** platforms that support the **AVX2** instruction set.
 
 
 
