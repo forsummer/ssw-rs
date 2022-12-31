@@ -8,8 +8,8 @@
 //! - smith-waterman algorithm implementaion which accelerated by **AVX2**
 //! - Wrapping of scoring matrix: `blosum50`, `blosum62` and `pam120`
 //! 
-//! ### Example
-//! ```
+//! ### Example: Use smith-waterman implementation accelerated by AVX2
+//! ```rust
 //! use ssw::score::blosum50;
 //! use ssw::pairwise::{ AlignFlag, smith_waterman_avx2 };
 //! 
