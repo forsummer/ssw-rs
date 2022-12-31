@@ -843,7 +843,6 @@ mod sw_avx2
     }
 }
 
-#[allow(dead_code)]
 mod sw_scalar
 {
     use std::mem::swap;
@@ -852,7 +851,7 @@ mod sw_scalar
 
     fn sw_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, terminater: u32, score: &S) -> Result<AlignEnd, AlignErr>
     where
-        S: Fn(u8, u8) -> i8
+        S: Fn(u8, u8) -> Option<i8>
     {
         let d_len = d.len();
         let q_len = q.len();
@@ -879,7 +878,18 @@ mod sw_scalar
                     let e = max!(prev_e[j].saturating_sub(ge), prev_h[j].saturating_sub(go));
                     let f = max!(left_f.saturating_sub(ge), left_h.saturating_sub(go));
 
-                    let pair = score(d[i - 1], q[j - 1]);
+                    let pair = match score(d[i - 1], q[j - 1])
+                    {
+                        Some(score) => score,
+                        None => Err(
+                            AlignErr::GetScoreErr
+                            { 
+                                file: file!().to_string(),
+                                line: line!() as usize,
+                                msg: "Can not get pair score with this scoring function".to_string() 
+                            })?,
+                    };
+
                     let ext = match pair > 0
                     {
                         true => prev_h[j - 1].saturating_add(pair.unsigned_abs() as u32),
@@ -929,7 +939,18 @@ mod sw_scalar
                     let e = max!(prev_e[j].saturating_sub(ge), prev_h[j].saturating_sub(go));
                     let f = max!(left_f.saturating_sub(ge), left_h.saturating_sub(go));
 
-                    let pair = score(d[i-1], q[j-1]);
+                    let pair = match score(d[i-1], q[j-1])
+                    {
+                        Some(score) => score,
+                        None => Err(
+                            AlignErr::GetScoreErr
+                            { 
+                                file: file!().to_string(),
+                                line: line!() as usize,
+                                msg: "Can not get pair score with this scoring function".to_string() 
+                            })?,
+                    };
+                    
                     let ext = match pair > 0
                     {
                         true  => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
@@ -959,7 +980,7 @@ mod sw_scalar
 
     fn banded_sw<S>(d: &[u8], q: &[u8], go: u32, ge: u32, score: &S) -> (Vec<u8>, Vec<u8>)
     where
-        S: Fn(u8, u8) -> i8
+        S: Fn(u8, u8) -> Option<i8>
     {
         let d_len = d.len();
         let q_len = q.len();
@@ -979,7 +1000,7 @@ mod sw_scalar
                 let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
                 let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
 
-                let pair = score(d[i-1], q[j-1]);
+                let pair = score(d[i-1], q[j-1]).unwrap();
                 let ext = match pair > 0
                 {
                     true  => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
@@ -1042,7 +1063,7 @@ mod sw_scalar
 
     pub fn smith_waterman_scalar<S>(d: &[u8], q: &[u8], go: u8, ge: u8, flag: &AlignFlag, score: S) -> Result<AlignResult, AlignErr>
     where
-        S: Fn(u8, u8) -> i8
+        S: Fn(u8, u8) -> Option<i8>
     {
         let (d_seq, q_seq) = match (d.is_ascii(), q.is_ascii())
         {
