@@ -62,5 +62,5 @@ mod avx;
 /// (The scoring matrix is wrapped into a closure like `Fn(u8, u8) -> Option<i8>`)
 pub mod score;
 
-
+/// Contain striped-smith-waterman implementation accelerated by AVX2 and a serial implementation.
 pub mod pairwise;
