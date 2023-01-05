@@ -1,5 +1,20 @@
 mod blosum
 {
+    /// A wrapping of scoring matrix **bosum62**. When function called, it will return a closure like `Fn(u8, u8) -> Option<i8>`.
+    /// The closurew which return accept a pair of residue(nucleotide or amino acid) character, then return the pair score.
+    /// If the residue pair has no corresponding score in the score matrix, closure will return `None`.
+    /// 
+    /// ### Example
+    /// ```rust
+    /// use score::blosum62;
+    /// 
+    /// fn main()
+    /// {
+    ///     let blosum62_mat = blosum62();
+    ///     assert_eq!(blosum62_mat(b'A', b'H'), Some(-2));
+    ///     assert_eq!(blosum62_mat(b'A', b'1'), None);
+    /// }
+    /// ```
     pub fn blosum62() -> Box<dyn Fn(u8, u8) -> Option<i8>>
     {
         let mat = [[  4, -2,  0, -2, -1, -2,  0, -2, -1, -1, -1, -1, -1, -2,  0, -1, -1, -1,  1,  0,  0,  0, -3, -2, -1,  0, -4 ],
@@ -39,7 +54,22 @@ mod blosum
         };
         Box::new(score)
     }
-    
+  
+    /// A wrapping of scoring matrix **bosum50**. When function called, it will return a closure like `Fn(u8, u8) -> Option<i8>`.
+    /// The closurew which return accept a pair of residue(nucleotide or amino acid) character, then return the pair score.          
+    /// If the residue pair has no corresponding score in the score matrix, closure will return `None`.                              
+    /// 
+    /// ### Example
+    /// ```rust
+    /// use score::blosum50;
+    /// 
+    /// fn main()
+    /// {
+    ///     let blosum50_mat = blosum50();
+    ///     assert_eq!(blosum50_mat(b'A', b'H'), Some(-2));
+    ///     assert_eq!(blosum50_mat(b'A', b'1'), None);
+    /// }
+    /// ```
     pub fn blosum50() -> Box<dyn Fn(u8, u8) -> Option<i8>>
     {
         let mat = [[  5, -2, -1, -2, -1, -3,  0, -2, -1,  0, -1, -2, -1, -1,  0, -1, -1, -2,  1,  0,  0,  0, -3, -1, -2, -1, -5 ],
