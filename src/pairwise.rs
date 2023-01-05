@@ -892,7 +892,7 @@ mod sw_scalar
 
                     let ext = match pair > 0
                     {
-                        true => prev_h[j - 1].saturating_add(pair.unsigned_abs() as u32),
+                        true  => prev_h[j - 1].saturating_add(pair.unsigned_abs() as u32),
                         false => prev_h[j - 1].saturating_sub(pair.unsigned_abs() as u32),
                     };
                     let h = max!(ext, e, f);
