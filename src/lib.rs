@@ -65,5 +65,5 @@ mod avx;
 /// If character pairs has no corresponding score in scoring matrix, closure will return `None`.
 pub mod score;
 
-/// Contain striped-smith-waterman implementation accelerated by AVX2 and a serial implementation.
+/// Contain striped-smith-waterman implementation accelerated by **AVX2** and a serial implementation.
 pub mod pairwise;

@@ -82,15 +82,35 @@ impl std::fmt::Display for AlignErr
     }
 }
 
+/// Store alignment result of smith-waterman.
+/// If only find the best alignment endpoint with `smith_waterman_avx2`, then `AlignResult` only contain the **end position** of **best alignment** and **optimal alignment score**.
+/// Otherwise, `AlignResult` will also contain **start** and **end** position of best aignment on **database sequence** and **query sequence** and **best tracing back path** on sequence.
 pub struct AlignResult
 {
+    /// Best alignment start position on **database sequence**.
     pub d_start: Option<usize>,
+
+    /// Start position on **query sequence**.
     pub q_start: Option<usize>,
+
+    /// Best alignment end position on **database sequence**.
     pub d_end: usize,
+
+    /// End position on **query sequence**.
     pub q_end: usize,
+
+    /// Best tracing back path on **database sequence**
     pub d_best: Option<Vec<u8>>,
+
+    /// Best tracing back path on **query sequence**
     pub q_best: Option<Vec<u8>>,
+
+    /// **Optimal score** of pairwise alignment
     pub opt: u32,
+
+    // If `flag` equal to `AlignFlag::End`, `AlignResult` will only contain optimal score and end position of alignment.
+    // If `flag` equal to `AlignFlag::Path`, `AlignResult` will also contain start position and best trace path of alignment.
+    // `std::fmt::Display` will determine how to print the `AlignResult` based on the value of the `flag` variable.
     flag: AlignFlag
 }
 
