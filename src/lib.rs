@@ -60,6 +60,9 @@ mod avx;
 
 /// Provide wrapping of scoring matrix, such as **blosum50**, **blosum62** and **pam120**.
 /// (The scoring matrix is wrapped into a closure like `Fn(u8, u8) -> Option<i8>`)
+/// When those function be called, it will return a closure like `Box<Fn(u8, u8) -> Option<i8>>`.
+/// The closure accept a character pairs(nucleotide or amino acid) and return corresponding score in scoring matrix.
+/// If character pairs has no corresponding score in scoring matrix, closure will return `None`.
 pub mod score;
 
 /// Contain striped-smith-waterman implementation accelerated by AVX2 and a serial implementation.
