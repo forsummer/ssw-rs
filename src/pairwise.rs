@@ -42,10 +42,16 @@ enum AlignEnd
     U32 { var: u32, pos: (usize, usize) },
 }
 
+/// Defines several types of errors that can occur when running alignment
 pub enum AlignErr
 {
+    /// Numerical overflow error during calculation
     OverFlow    { file: String, line: usize, msg: String },
+
+    /// Database or query sequence contain illegal character
     IllegalChar { file: String, line: usize, msg: String },
+
+    /// There is no corresponding score for character pairs in the scoring rules
     GetScoreErr { file: String, line: usize, msg: String },
 }
 
