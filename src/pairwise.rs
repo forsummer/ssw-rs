@@ -32,7 +32,8 @@ macro_rules! get_mut_unchecked
     };
 }
 
-/// Used to control behavior of `smith_waterman_avx2` and `smith_waterman_scalar` function
+/// Used to control behavior of [`smith_waterman_avx2`](fn@crate::pairwise::smith_waterman_avx2)
+/// and [`smith_waterman_scalar`](fn@crate::pairwise::smith_waterman_scalar) function
 pub enum AlignFlag { End, Path }
 
 enum AlignEnd
@@ -97,7 +98,8 @@ impl std::fmt::Display for AlignErr
 }
 
 /// Store alignment result of smith-waterman.
-/// If only find the best alignment endpoint with `smith_waterman_avx2`, then `AlignResult` only contain the **end position** of **best alignment** and **optimal alignment score**.
+/// If only find the best alignment endpoint with [`smith_waterman_avx2`](fn@crate::pairwise::smith_waterman_avx2),
+/// then `AlignResult` only contain the **end position** of **best alignment** and **optimal alignment score**.
 /// Otherwise, `AlignResult` will also contain **start** and **end** position of best aignment on **database sequence** and **query sequence** and **best tracing back path** on sequence.
 pub struct AlignResult
 {
