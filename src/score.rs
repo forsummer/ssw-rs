@@ -2,16 +2,16 @@ mod blosum
 {
     /// Wrapping of scoring matrix **blosum62**
     /// 
+    /// `blosum62()` is a wrapping of scoring matrix **blosum62**. When function called, if will return a closure like `Fn(u8, u8) -> Option<i8>`.
+    /// The closure which return accept a pair of residue(nucleotide or amino acid) character, then return the pair score.
+    /// If residue pair has no corresponding score in scoring matrix, closure will return `None`.
+    /// 
     /// ### Example
     /// ```rust
     /// use score::blosum62;
     /// 
     /// fn main()
     /// {
-    ///     // `blosum62()` is a wrapping of scoring matrix **blosum62**
-    ///     // When function called, if will return a closure like `Fn(u8, u8) -> Option<i8>`.
-    ///     // The closure which return accept a pair of residue(nucleotide or amino acid) character, then return the pair score.
-    ///     // If residue pair has no corresponding score in scoring matrix, closure will return `None`.
     ///     let blosum62_mat = blosum62();
     ///    
     ///     // Character pairs "A - H" corresponding to score "-2", so the closure return `Some(-2)`.
