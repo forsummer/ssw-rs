@@ -1,6 +1,28 @@
 mod blosum
 {
-    pub fn blosum62() -> Box<dyn Fn(u8, u8) -> i8>
+    /// Wrapping of scoring matrix **blosum62**
+    /// 
+    /// `blosum62()` is a wrapping of scoring matrix **blosum62**. When function called, if will return a closure like `Fn(u8, u8) -> Option<i8>`.
+    /// The closure which return accept a pair of residue(nucleotide or amino acid) character, then return the pair score.
+    /// If residue pair has no corresponding score in scoring matrix, closure will return `None`.
+    /// 
+    /// ### Example
+    /// ```rust
+    /// use score::blosum62;
+    /// 
+    /// fn main()
+    /// {
+    ///     // In this case, type of `blosum62_mat` is `Fn(u8, u8) -> Option<i8>`
+    ///     let blosum62_mat = blosum62();
+    ///    
+    ///     // Character pairs "A - H" corresponding to score "-2", so the closure return `Some(-2)`.
+    ///     assert_eq!(blosum62_mat(b'A', b'H'), Some(-2));
+    ///     
+    ///     // Character pair "A-1" has no corresponding score, so the closure return `None`.
+    ///     assert_eq!(blosum62_mat(b'A', b'1'), None);
+    /// }
+    /// ```
+    pub fn blosum62() -> Box<dyn Fn(u8, u8) -> Option<i8>>
     {
         let mat = [[  4, -2,  0, -2, -1, -2,  0, -2, -1, -1, -1, -1, -1, -2,  0, -1, -1, -1,  1,  0,  0,  0, -3, -2, -1,  0, -4 ],
             [ -2,  4, -3,  4,  1, -3, -1,  0, -3, -4,  0, -4, -3,  3, -1, -2,  0, -1,  0, -1, -1, -3, -4, -3,  1, -1, -4 ],
@@ -34,12 +56,35 @@ mod blosum
         {
             let i = if r1 == b'*' { 26 } else { (r1 - 65) as usize };
             let j = if r2 == b'*' { 26 } else { (r2 - 65) as usize };
-            mat[i][j]
+            let res = if i >= 27 || j >= 27 { None } else { Some(mat[i][j]) };
+            res
         };
         Box::new(score)
     }
-    
-    pub fn blosum50() -> Box<dyn Fn(u8, u8) -> i8>
+  
+    /// Wrapping of scoring matrix **blosum50**
+    /// 
+    /// When blosum50() was called, it will return a closure like `Fn(u8, u8) -> Option<i8>`, this closure accept a letter pairs.
+    /// If there is an associated score of letter pairs in the score matrix, the closure will return the score, else closure return `None`
+    /// 
+    /// ### Example
+    /// ```rust
+    /// use score::blosum50;
+    /// 
+    /// fn main()
+    /// {
+    ///     // In this case, the type of `blosum50_mat` is `Box<Fn(u8, u8) -> Option<i8>>`.
+    ///     let blosum50_mat = blosum50();
+    ///     
+    ///     // In scoring matrix `blosum50`, character pairs "A - H" corresponding to score "-2"
+    ///     // So, the closure return `Some(-2)`.
+    ///     assert_eq!(blosum50_mat(b'A', b'H'), Some(-2));
+    /// 
+    ///     // Character pairs "A - 1" has no correspond score in scoring matrix, so the closure return `None`.
+    ///     assert_eq!(blosum50_mat(b'A', b'1'), None);
+    /// }
+    /// ```
+    pub fn blosum50() -> Box<dyn Fn(u8, u8) -> Option<i8>>
     {
         let mat = [[  5, -2, -1, -2, -1, -3,  0, -2, -1,  0, -1, -2, -1, -1,  0, -1, -1, -2,  1,  0,  0,  0, -3, -1, -2, -1, -5 ],
             [ -2,  5, -3,  5,  1, -4, -1,  0, -4,  0,  0, -4, -3,  4,  0, -2,  0, -1,  0,  0,  0, -4, -5, -1, -3,  2, -5 ],
@@ -68,11 +113,13 @@ mod blosum
             [ -2, -3, -3, -3, -2,  4, -3,  2, -1,  0, -2, -1,  0, -2,  0, -3, -1, -1, -2, -2,  0, -1,  2, -1,  8, -2, -5 ],
             [ -1,  2, -3,  1,  5, -4, -2,  0, -3,  0,  1, -3, -1,  0,  0, -1,  4,  0,  0, -1,  0, -3, -2, -1, -2,  5, -5 ],
             [ -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5,  1 ]];
+
         let score = move |r1, r2|
         {
             let i = if r1 == b'*' { 26 } else { (r1 - 65) as usize };
             let j = if r2 == b'*' { 26 } else { (r2 - 65) as usize };
-            mat[i][j]
+            let res = if i >= 27 || j >= 27 { None } else { Some(mat[i][j]) };
+            res
         };
         Box::new(score)
     }
@@ -80,7 +127,30 @@ mod blosum
 
 mod pam
 {
-    pub fn pam120() -> Box<dyn Fn(u8, u8) -> i8>
+    /// Wrapping of scoring matrix **pam120**
+    /// 
+    /// When `pam120()` was called, a closure like `Box<Fn(u8, u8) -> Option<i8>>` will be returned.
+    /// If there is an associated score of letter pairs in the score matrix, the closure will return the score, else closure return `None`
+    /// 
+    /// ### Example
+    /// ```rust
+    /// use score::pam120;
+    /// 
+    /// fn main()
+    /// {
+    ///     // In this case, the type of `pam120_mat` is `Box<Fn(u8, u8) -> Option<i8>>`.
+    ///     let pam120_mat = pam120();
+    ///
+    ///     // In scoring matrix `pam120`, character pairs "A - H" corresponding to score "-3".
+    ///     // So, the closure return `Some(-3)`.
+    ///     assert_eq!(pam120_mat(b'A', b'H'), Some(-3));
+    /// 
+    ///     // Character pairs "A - 1" has not corresponding score in `pam120`, so the closure return 'None'.
+    ///     assert_eq!(pam120_mat(b'A', b'1'), None);
+    /// }
+    /// ```
+    
+    pub fn pam120() -> Box<dyn Fn(u8, u8) -> Option<i8>>
     {
         let mat = [[  3,  0, -3,  0,  0, -4,  1, -3, -1, -2, -2, -3, -2, -1, -1,  1, -1, -3,  1,  1, -1,  0, -7, -4, -1, -1, -8 ],
             [  0,  4, -6,  4,  3, -5,  0,  1, -3, -4,  0, -4, -4,  3, -1, -2,  0, -2,  0,  0, -1, -3, -6, -3,  2, -1, -8 ],
@@ -109,11 +179,13 @@ mod pam
             [ -1,  2, -7,  3,  4, -6, -2,  1, -3, -3, -1, -3, -2,  0, -1, -1,  4, -1, -1, -2, -1, -3, -7, -5,  4, -1, -8 ],
             [ -1, -1, -4, -2, -1, -3, -2, -2, -1, -2, -2, -2, -2, -1, -2, -2, -1, -2, -1, -1, -2, -1, -5, -3, -1, -2, -8 ],
             [ -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8,  1 ]];
+
         let score = move |r1, r2|
         {
             let i = if r1 == b'*' { 26 } else { (r1 - 65) as usize };
             let j = if r2 == b'*' { 26 } else { (r2 - 65) as usize };
-            mat[i][j]
+            let res = if i >= 27 || j >= 27 { None } else { Some(mat[i][j]) };
+            res
         };
         Box::new(score)
     }

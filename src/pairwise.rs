@@ -32,6 +32,7 @@ macro_rules! get_mut_unchecked
     };
 }
 
+/// Used to control behavior of `smith_waterman_avx2` and `smith_waterman_scalar` function
 pub enum AlignFlag { End, Path }
 
 enum AlignEnd
@@ -41,10 +42,17 @@ enum AlignEnd
     U32 { var: u32, pos: (usize, usize) },
 }
 
+/// Defines several types of errors that can occur when running alignment
 pub enum AlignErr
 {
+    /// Numerical overflow error during calculation
     OverFlow    { file: String, line: usize, msg: String },
+
+    /// Database or query sequence contain illegal character
     IllegalChar { file: String, line: usize, msg: String },
+
+    /// There is no corresponding score for character pairs in the scoring rules
+    GetScoreErr { file: String, line: usize, msg: String },
 }
 
 impl std::fmt::Debug for AlignErr
@@ -55,6 +63,7 @@ impl std::fmt::Debug for AlignErr
         {
             AlignErr::OverFlow    { file, line, msg } => (file, line, msg),
             AlignErr::IllegalChar { file, line, msg } => (file, line, msg),
+            AlignErr::GetScoreErr { file, line, msg } => (file, line, msg),
         };
 
         f.debug_struct("Error")
@@ -71,23 +80,44 @@ impl std::fmt::Display for AlignErr
     {
         let (file, line, msg) = match self
         {
-            AlignErr::OverFlow { file, line, msg }    => (file, line, msg),
+            AlignErr::OverFlow    { file, line, msg } => (file, line, msg),
             AlignErr::IllegalChar { file, line, msg } => (file, line, msg),
+            AlignErr::GetScoreErr { file, line, msg } => (file, line, msg),
         };
 
         write!(f, "error: {} in {}, {}", msg, file, line)
     }
 }
 
+/// Store alignment result of smith-waterman.
+/// If only find the best alignment endpoint with `smith_waterman_avx2`, then `AlignResult` only contain the **end position** of **best alignment** and **optimal alignment score**.
+/// Otherwise, `AlignResult` will also contain **start** and **end** position of best aignment on **database sequence** and **query sequence** and **best tracing back path** on sequence.
 pub struct AlignResult
 {
+    /// Best alignment start position on **database sequence**.
     pub d_start: Option<usize>,
+
+    /// Start position on **query sequence**.
     pub q_start: Option<usize>,
+
+    /// Best alignment end position on **database sequence**.
     pub d_end: usize,
+
+    /// End position on **query sequence**.
     pub q_end: usize,
+
+    /// Best tracing back path on **database sequence**
     pub d_best: Option<Vec<u8>>,
+
+    /// Best tracing back path on **query sequence**
     pub q_best: Option<Vec<u8>>,
+
+    /// **Optimal score** of pairwise alignment
     pub opt: u32,
+
+    // If `flag` equal to `AlignFlag::End`, `AlignResult` will only contain optimal score and end position of alignment.
+    // If `flag` equal to `AlignFlag::Path`, `AlignResult` will also contain start position and best trace path of alignment.
+    // `std::fmt::Display` will determine how to print the `AlignResult` based on the value of the `flag` variable.
     flag: AlignFlag
 }
 
@@ -171,9 +201,9 @@ mod sw_avx2
     
     enum ProfileType { Epu8, Epu16 }
 
-    fn query_profile<S>(d: &[u8], q: &[u8], p: ProfileType, f: S) -> Profile
+    fn query_profile<S>(d: &[u8], q: &[u8], p: ProfileType, f: S) -> Result<Profile, AlignErr>
     where
-        S: Fn(u8, u8) -> i8
+        S: Fn(u8, u8) -> Option<i8>
     {
         let mut bitmap_d: Vec<u8> = vec![0; 27];
         d.iter().for_each(|r| bitmap_d[(*r - 65) as usize] = 1);
@@ -191,7 +221,18 @@ mod sw_avx2
         {
             for r2 in alphabet_q.iter()
             {
-                bias = min!(bias, f(*r1, *r2));
+                let pair_score = match f(*r1, *r2)
+                {
+                    None => Err(
+                        AlignErr::GetScoreErr
+                        { 
+                            file: file!().to_string(),
+                            line: line!() as usize,
+                            msg: "Can not get pair score with this scoring function".to_string() 
+                        })?,
+                    Some(score) => score,
+                };
+                bias = min!(bias, pair_score);
             }
         }
         bias = bias.abs();
@@ -202,7 +243,7 @@ mod sw_avx2
             {
                 (b'*', _)      => 0,
                 (_, b'*')      => 0,
-                (a, b) => f(a, b) + bias,
+                (a, b) => f(a, b).unwrap() + bias,
             }
         };
 
@@ -247,7 +288,7 @@ mod sw_avx2
                 }
                 profile[(residue - 65) as usize] = score_set;
             }
-            return Profile::Word { bias: bias.unsigned_abs() as u16, profile }
+            return Ok(Profile::Word { bias: bias.unsigned_abs() as u16, profile })
         }
         
         if seg_len == 32
@@ -267,7 +308,7 @@ mod sw_avx2
                 }
                 profile[(residue - 65) as usize] = score_set;
             }
-            return Profile::Byte { bias: bias.unsigned_abs(), profile }
+            return Ok(Profile::Byte { bias: bias.unsigned_abs(), profile })
         }
 
         unreachable!()
@@ -275,7 +316,7 @@ mod sw_avx2
 
     fn banded_sw<S>(d: &[u8], q: &[u8], go: u8, ge: u8, score: &S) -> (Vec<u8>, Vec<u8>)
     where
-        S: Fn(u8, u8) -> i8
+        S: Fn(u8, u8) -> Option<i8>
     {
         let d_len = d.len();
         let q_len = q.len();
@@ -300,7 +341,7 @@ mod sw_avx2
                 let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
                 let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
 
-                let pair = score(d[i-1], q[j-1]);
+                let pair = score(d[i-1], q[j-1]).unwrap();
                 let ext = match pair > 0
                 {
                     true  => prev_h[j-1].saturating_add(pair.unsigned_abs() as u16),
@@ -540,160 +581,6 @@ mod sw_avx2
         Ok(AlignEnd::U8 { var: opt, pos })
     }
 
-    // fn ssw_byte(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u8, profile: &Profile) -> Result<AlignEnd, AlignErr>
-    // {
-        // let go = M256Epu8::fill(go);
-        // let ge = M256Epu8::fill(ge);
-// 
-        // let (bias, profile) = match profile
-        // {
-            // Profile::Byte { bias, profile } => (*bias, profile),
-            // _ => panic!("Unacceptable profile"),
-        // };
-// 
-        // let overflow_sign = u8::MAX - bias;
-// 
-        // let seg_num = (q.len() + 31) / 32;
-        // let bias = M256Epu8::fill(bias);
-// 
-        // let mut f = M256Epu8::fill(0);
-        // let mut h_store = vec![M256Epu8::fill(0); seg_num];
-        // let mut e_store = vec![M256Epu8::fill(0); seg_num];
-        // let mut h_buffer = vec![M256Epu8::fill(0); seg_num];
-// 
-        // let mut opt_var = 0;
-        // let mut opt_pos = (0, 0);
-        // let mut max = M256Epu8::fill(0);
-        // let mut is_overflow = 0;
-// 
-        // if terminater == 0
-        // {
-            // for (i, r) in d.iter().enumerate()
-            // {
-                // f.zero_out();
-// 
-                // let mut prev_h = *h_store.last().unwrap();
-                // prev_h.shift_left_byte();
-// 
-                // for (e_s, (h_buf, (h_s, score))) in e_store
-                    // .iter_mut()
-                    // .zip(h_buffer.iter_mut()
-                    // .zip(h_store.iter_mut()
-                    // .zip(profile[(*r - 65) as usize].iter())))
-                // {
-                    // let h = max_epu8!(prev_h + (*score) - bias, *e_s);
-                    // let e = max_epu8!(h - go, *e_s - ge);
-                    // f = max_epu8!(h - go, f - ge);
-// 
-                    // *e_s = e;
-                    // *h_buf = h;
-                    // swap::<M256Epu8>(&mut prev_h, h_s);
-                // }
-// 
-                // f.shift_left_byte();
-// 
-                // let mut j = 0;
-                // while f > h_buffer[j] - go
-                // {
-                    // h_buffer[j] = max_epu8!(f, h_buffer[j]);
-                    // f = f - ge;
-// 
-                    // if j+1 >= seg_num
-                    // {
-                        // f.shift_left_byte();
-                        // j = 0;
-                    // }
-                // }
-// 
-                // h_buffer.iter().for_each(|h| max = max_epu8!(max, *h));
-                // let tmp = max.get_max();
-// 
-                // if tmp == overflow_sign
-                // {
-                    // is_overflow = is_overflow + 1;
-                    // if is_overflow > 1
-                    // {
-                        // Err(AlignErr::OverFlow
-                        // {
-                            // file: file!().to_string(),
-                            // line: line!() as usize,
-                            // msg: "Score out of u8 range".to_string()
-                        // } )?
-                    // }
-                // }
-// 
-                // if tmp > opt_var
-                // {
-                    // opt_var = tmp;
-                    // opt_pos.0 = i;
-                    // 
-                    // for (j, h) in h_buffer.iter().enumerate()
-                    // {
-                        // if h.contains(opt_var)
-                        // {
-                            // opt_pos.1 = h.position(opt_var) * seg_num + j;
-                            // break;
-                        // }
-                    // }
-                // }
-                // swap::<Vec<M256Epu8>>(&mut h_store, &mut h_buffer);
-            // }
-        // }
-        // else
-        // {
-            // 'outer: for (i, r) in d.iter().enumerate()
-            // {
-                // f.zero_out();
-// 
-                // let mut prev_h = *h_store.last().unwrap();
-                // prev_h.shift_left_byte();
-                // 
-                // for (e_s, (h_buf, (h_s, score))) in e_store
-                    // .iter_mut()
-                    // .zip(h_buffer.iter_mut()
-                    // .zip(h_store.iter_mut()
-                    // .zip(profile[(*r - 65) as usize].iter())))
-                // {
-                    // let h = max_epu8!(prev_h + (*score) - bias, *e_s);
-                    // let e = max_epu8!(h - go, *e_s - ge);
-                    // f = max_epu8!(h - go, f - ge);
-// 
-                    // *e_s = e;
-                    // *h_buf = h;
-                    // swap::<M256Epu8>(&mut prev_h, h_s);
-                // }
-// 
-                // f.shift_left_byte();
-// 
-                // let mut j = 0;
-                // while f > h_buffer[j] - go
-                // {
-                    // h_buffer[j] = max_epu8!(f, h_buffer[j]);
-                    // f = f - ge;
-// 
-                    // if j+1 >= seg_num
-                    // {
-                        // f.shift_left_byte();
-                        // j = 0;
-                    // }
-                // }
-// 
-                // for (j, h) in h_buffer.iter().enumerate()
-                // {
-                    // if h.contains(terminater)
-                    // {
-                        // opt_pos.0 = i;
-                        // opt_pos.1 = h.position(terminater) * seg_num + j;
-                        // opt_var = terminater;
-                        // break 'outer;
-                    // }
-                // }
-                // swap::<Vec<M256Epu8>>(&mut h_store, &mut h_buffer);
-            // }
-        // }
-        // Ok( AlignEnd::U8 { var: opt_var, pos: opt_pos } )
-    // }
-
     fn ssw_word(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd, AlignErr>
     {
         let go = M256Epu16::fill(go as u16);
@@ -728,24 +615,41 @@ mod sw_avx2
                 let mut prev_h = *h_store.last().unwrap();
                 prev_h = prev_h << 1;
 
+                let profile_col = get_unchecked!(profile, (r - 65) as usize);
                 for j in 0..seg_num
                 {
-                    let score = profile[(r - 65) as usize][j];
-                    let h = max_epu16(max_epu16(prev_h + score - bias, e_store[j]), f);
-                    let e = max_epu16(h - go, e_store[j] - ge);
-                    f = max_epu16(h - go, f - ge);
+                    let score = *get_unchecked!(profile_col, j);
+                    let prev_e = *get_unchecked!(e_store, j);
 
-                    e_store[j] = e;
-                    h_buffer[j] = h;
-                    prev_h = h_store[j];
+                    let h = max_epu16(max_epu16(prev_h + score - bias, prev_e), f);
+
+                    let h_sub_go = h - go;
+
+                    let e = max_epu16(h_sub_go, prev_e - ge);
+                    f = max_epu16(h_sub_go, f - ge);
+
+                    let e_store_mut_ref = get_mut_unchecked!(e_store, j);
+                    *e_store_mut_ref = e;
+
+                    let h_buffer_mut_ref = get_mut_unchecked!(h_buffer, j);
+                    *h_buffer_mut_ref = h;
+
+                    prev_h = *get_unchecked!(h_store, j);
                 }
 
                 f = f << 1;
                 let mut j = 0;
-                while f.anyelement_gt(&(h_buffer[j] - go))
+                while f.anyelement_gt(&(*get_unchecked!(h_buffer, j) - go))
                 {
-                    h_buffer[j] = max_epu16(f, h_buffer[j]);
-                    e_store[j] = max_epu16(e_store[j], h_buffer[j] - go);
+                    let h_buffer_uncorrect = *get_unchecked!(h_buffer, j);
+                    let h_buffer_mut_ref = get_mut_unchecked!(h_buffer, j);
+                    *h_buffer_mut_ref = max_epu16(f, h_buffer_uncorrect);
+
+                    let h_buffer_correct = *get_unchecked!(h_buffer, j);
+                    let e_store_uncorrect = *get_unchecked!(e_store, j);
+                    let e_store_mut_ref = get_mut_unchecked!(e_store, j);
+                    *e_store_mut_ref = max_epu16(e_store_uncorrect, h_buffer_correct - go);
+
                     f = f - ge;
 
                     j = j + 1;
@@ -843,163 +747,90 @@ mod sw_avx2
         Ok (AlignEnd::U16 { var: opt, pos })
     }
 
-    // fn ssw_word(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd, AlignErr>
-    // {
-    //     let go = M256Epu16::fill(go as u16);
-    //     let ge = M256Epu16::fill(ge as u16);
-
-    //     let (bias, profile) = match profile
-    //     {
-    //         Profile::Word { bias, profile } => (*bias, profile),
-    //         _ => panic!("Unacceptable profile"),
-    //     };
-        
-    //     let overflow_sign = u16::MAX - bias;
-
-    //     let seg_num = (q.len() + 15) / 16;
-    //     let bias = M256Epu16::fill(bias);
-
-    //     let mut f = M256Epu16::fill(0);
-    //     let mut h_store = vec![M256Epu16::fill(0); seg_num];
-    //     let mut e_store = vec![M256Epu16::fill(0); seg_num];
-    //     let mut h_buffer = vec![M256Epu16::fill(0); seg_num];
-
-    //     let mut opt_var = 0;
-    //     let mut opt_pos = (0, 0);
-    //     let mut max = M256Epu16::fill(0);
-    //     let mut is_overflow = 0;
-
-    //     if terminater == 0
-    //     {
-    //         for (i, r) in d.iter().enumerate()
-    //         {
-    //             f.zero_out();
-
-    //             let mut prev_h = *h_store.last().unwrap();
-    //             prev_h.shift_left_bytex2();
-
-    //             for (e_s, (h_buf, (h_s, score))) in e_store
-    //                 .iter_mut()
-    //                 .zip(h_buffer.iter_mut()
-    //                 .zip(h_store.iter_mut()
-    //                 .zip(profile[(r - 65) as usize].iter())))
-    //             {
-    //                 let h = max_epu16!(prev_h + (*score) - bias, *e_s);
-    //                 let e = max_epu16!(h - go, *e_s - ge);
-    //                 f = max_epu16!(h - go, f - ge);
-
-    //                 *e_s = e;
-    //                 *h_buf = h;
-    //                 swap::<M256Epu16>(&mut prev_h, h_s);
-    //             }
-
-    //             f.shift_left_bytex2();
-
-    //             let mut j = 0;
-    //             while f > h_buffer[j] - go
-    //             {
-    //                 h_buffer[j] = max_epu16!(f, h_buffer[j]);
-    //                 f = f - ge;
-
-    //                 if j+1 >= seg_num
-    //                 {
-    //                     f.shift_left_bytex2();
-    //                     j = 0;
-    //                 }
-    //             }
-
-    //             h_buffer.iter().for_each(|h| max = max_epu16!(*h, max));
-    //             let tmp = max.get_max();
-
-    //             if tmp == overflow_sign
-    //             {
-    //                 is_overflow = is_overflow + 1;
-    //                 if is_overflow > 1
-    //                 {
-    //                     Err(AlignErr::OverFlow
-    //                     {
-    //                         file: file!().to_string(),
-    //                         line: line!() as usize,
-    //                         msg: "Score out of u16 range".to_string(),
-    //                     })?
-    //                 }
-    //             }
-
-    //             if tmp > opt_var
-    //             {
-    //                 opt_var = tmp;
-    //                 opt_pos.0 = i;
-
-    //                 for (j, h) in h_buffer.iter().enumerate()
-    //                 {
-    //                     if h.contains(opt_var)
-    //                     {
-    //                         opt_pos.1 = h.position(opt_var) * seg_num + j;
-    //                         break;
-    //                     }
-    //                 }
-    //             }
-    //             swap::<Vec<M256Epu16>>(&mut h_store, &mut h_buffer);
-    //         }
-    //     }
-    //     else
-    //     {
-    //         'outer: for (i, r) in d.iter().enumerate()
-    //         {
-    //             f.zero_out();
-
-    //             let mut prev_h = *h_store.last().unwrap();
-    //             prev_h.shift_left_bytex2();
-
-    //             for (e_s, (h_buf, (h_s, score))) in e_store
-    //                 .iter_mut()
-    //                 .zip(h_buffer.iter_mut()
-    //                 .zip(h_store.iter_mut()
-    //                 .zip(profile.get((r - 65) as usize).unwrap().iter())))
-    //             {
-    //                 let h = max_epu16!(prev_h + (*score) - bias, *e_s);
-    //                 let e = max_epu16!(h - go, *e_s - ge);
-    //                 f = max_epu16!(h - go, f - ge);
-
-    //                 *e_s = e;
-    //                 *h_buf = h;
-    //                 swap::<M256Epu16>(&mut prev_h, h_s);
-    //             }
-
-    //             f.shift_left_bytex2();
-
-    //             let mut j = 0;
-    //             while f > h_buffer[j] - go
-    //             {
-    //                 h_buffer[j] = max_epu16!(f, h_buffer[j]);
-    //                 f = f - ge;
-
-    //                 if j+1 >= seg_num
-    //                 {
-    //                     f.shift_left_bytex2();
-    //                     j = 0;
-    //                 }
-    //             }
-
-    //             for (j, h) in h_buffer.iter().enumerate()
-    //             {
-    //                 if h.contains(terminater)
-    //                 {
-    //                     opt_pos.0 = i;
-    //                     opt_pos.1 = h.position(terminater) * seg_num + j;
-    //                     opt_var = terminater;
-    //                     break 'outer;
-    //                 }
-    //             }
-    //             swap::<Vec<M256Epu16>>(&mut h_store, &mut h_buffer);
-    //         }
-    //     }
-    //     Ok( AlignEnd::U16 { var: opt_var, pos: opt_pos } )
-    // }
-
+    /// `Smith-Waterman` algorithm implemention accelerated by **AVX2**
+    /// 
+    /// ***Function's working mode***:
+    /// 1. Find alignment **end position** and calculating **optimal score** only.
+    /// 2. Find alignment **start/end position**, calculating **optimal score** and find **best trace path**.
+    ///  
+    /// ***Select the working mode***: function's working mode depend on the values of parameter `flag` (type: [`AlignFlag`](enum@AlignFlag))
+    /// 1. `flag` equal to `AlignFlag::End`, function will find alignment **endpoint** and **optimal score** only.
+    /// 2. `flag` equal to `AlignFlag::Path`, the function will find **startpoint/endpoint** of alignment, and **optimal score** and **best trace back path**.
+    ///
+    /// ***Scoring Rules:***: As we all know, Smith-waterman algorithm evaluates the similarity of two sequences based on a score matrix,
+    /// such as **blosum50**, **blosum62** or a user-defined score rule. Thus, `ssw` library provides several scoring matrices wrapped in closures.
+    /// Therefore, if you want to use custom scoring rule, just wrap it in closure like `Fn(u8, u8) -> Option<i8>` and pass it to `smith_waterman_avx2` by parameter `f`.
+    /// 
+    /// ### Arguments
+    /// * `d`: Database sequence 
+    /// * `q`: Query sequence
+    /// * `go`: Gap open penalty points
+    /// * `ge`: Gap extend penalty points
+    /// * `flag`: Controls the operating mode of this function
+    /// * `f`: Scoring rules
+    /// 
+    /// ### Example1: Find endpoint and optimal score only
+    /// ```rust
+    /// use ssw::score::blosum50;
+    /// use ssw::pairwise::{ AlignFlag, smith_waterman_avx2 };
+    /// 
+    /// fn main()
+    /// {
+    ///     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes(); // Database sequence
+    ///     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();    // Query sequence
+    /// 
+    ///     let go = 3; // Gap open penalty
+    ///     let ge = 2; // Gap extend penalty
+    ///     
+    ///     let flag = AlignFlag::End;
+    ///     
+    ///     // Scoring rule: bosum50 scoring matrix
+    ///     let pair = blosum50();
+    /// 
+    ///     // `flag` equal to `AlignFlag::End`, therefore `smith_waterman_avx2` will find alignment endpoint and optimal score only.
+    ///     let res = smith_waterman_avx2(d, q, go, ge, &flag, &pair)
+    ///         .map_or_else(|err| panic!("{}", err), |res| res);
+    /// 
+    ///     println!("{}", res);
+    ///     // The output is as follows:
+    ///     // 
+    ///     // optimal_alignment_score: 216, d_end: 33, q_end: 30
+    /// }
+    /// ```
+    /// 
+    /// ### Example2: Find startpoint, endpoint, optimal score and best trace back path
+    /// ```rust
+    /// use ssw::score::blosum50;
+    /// use ssw::pairwise::{ AlignFlag, smith_waterman_avx2 };
+    /// 
+    /// fn main()
+    /// {
+    ///     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes(); // Database sequence
+    ///     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();    // Query sequence
+    /// 
+    ///     let go = 3; // Gap open penalty
+    ///     let ge = 2; // Gap extend penalty
+    /// 
+    ///     let flag = AlignFlag::Path;
+    /// 
+    ///     let pair = blosum50();
+    /// 
+    ///     let res = smith_waterman_avx2(d, q, go, ge, &flag, &pair)
+    ///         .map_or_else(|err| panic!("{}", err), |res| res);
+    /// 
+    ///     println!("{}", res);
+    ///     // The output is as follows:
+    ///     //  
+    ///     // optimal_alignment_score: 216, d_start 1, d_end: 33, q_start 1, q_end: 30
+    ///     //  
+    ///     // d_best: 1 CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA 33
+    ///     //           ||||||||||||*|||||||||||   |||||| 
+    ///     // q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
+    /// }
+    /// ```
     pub fn smith_waterman_avx2<S>(d: &[u8], q:&[u8], go: u8, ge: u8, flag: &AlignFlag, f: S) -> Result<AlignResult, AlignErr>
     where
-        S: Fn(u8, u8) -> i8
+        S: Fn(u8, u8) -> Option<i8>
     {
         let (d_seq, q_seq) = match (d.is_ascii(), q.is_ascii())
         {
@@ -1024,13 +855,13 @@ mod sw_avx2
                 })?,
         };
 
-        let profile_u8 = query_profile(&d_seq, &q_seq, ProfileType::Epu8, &f);
+        let profile_u8 = query_profile(&d_seq, &q_seq, ProfileType::Epu8, &f)?;
         let ext_end = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile_u8)
         {
             Ok(res) => res,
             Err(AlignErr::OverFlow {..}) => 
             {
-                let profile_u16 = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f);
+                let profile_u16 = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f)?;
                 ssw_word(&d_seq, &q_seq, go, ge, 0, &profile_u16)?
             },
             _ => unreachable!(),
@@ -1068,7 +899,7 @@ mod sw_avx2
                 d_splited_rev.reverse();
                 q_splited_rev.reverse();
                 
-                let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu8, &f);
+                let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu8, &f)?;
                 let (d_start, q_start) = match ssw_byte(&d_splited_rev, &q_splited_rev, go, ge, var, &profile_rev)?
                 {
                     AlignEnd::U8 { pos, .. } => (d_end - pos.0, q_end - pos.1),
@@ -1095,7 +926,7 @@ mod sw_avx2
                 d_splited_rev.reverse();
                 q_splited_rev.reverse();
 
-                let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu16, &f);
+                let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu16, &f)?;
                 let (d_start, q_start) = match ssw_word(&d_splited_rev, &q_splited_rev, go, ge, var, &profile_rev)?
                 {
                     AlignEnd::U16 { pos, .. } => (d_end - pos.0, q_end - pos.1),
@@ -1120,7 +951,6 @@ mod sw_avx2
     }
 }
 
-#[allow(dead_code)]
 mod sw_scalar
 {
     use std::mem::swap;
@@ -1129,7 +959,7 @@ mod sw_scalar
 
     fn sw_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, terminater: u32, score: &S) -> Result<AlignEnd, AlignErr>
     where
-        S: Fn(u8, u8) -> i8
+        S: Fn(u8, u8) -> Option<i8>
     {
         let d_len = d.len();
         let q_len = q.len();
@@ -1156,10 +986,21 @@ mod sw_scalar
                     let e = max!(prev_e[j].saturating_sub(ge), prev_h[j].saturating_sub(go));
                     let f = max!(left_f.saturating_sub(ge), left_h.saturating_sub(go));
 
-                    let pair = score(d[i - 1], q[j - 1]);
+                    let pair = match score(d[i - 1], q[j - 1])
+                    {
+                        Some(score) => score,
+                        None => Err(
+                            AlignErr::GetScoreErr
+                            { 
+                                file: file!().to_string(),
+                                line: line!() as usize,
+                                msg: "Can not get pair score with this scoring function".to_string() 
+                            })?,
+                    };
+
                     let ext = match pair > 0
                     {
-                        true => prev_h[j - 1].saturating_add(pair.unsigned_abs() as u32),
+                        true  => prev_h[j - 1].saturating_add(pair.unsigned_abs() as u32),
                         false => prev_h[j - 1].saturating_sub(pair.unsigned_abs() as u32),
                     };
                     let h = max!(ext, e, f);
@@ -1206,7 +1047,18 @@ mod sw_scalar
                     let e = max!(prev_e[j].saturating_sub(ge), prev_h[j].saturating_sub(go));
                     let f = max!(left_f.saturating_sub(ge), left_h.saturating_sub(go));
 
-                    let pair = score(d[i-1], q[j-1]);
+                    let pair = match score(d[i-1], q[j-1])
+                    {
+                        Some(score) => score,
+                        None => Err(
+                            AlignErr::GetScoreErr
+                            { 
+                                file: file!().to_string(),
+                                line: line!() as usize,
+                                msg: "Can not get pair score with this scoring function".to_string() 
+                            })?,
+                    };
+                    
                     let ext = match pair > 0
                     {
                         true  => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
@@ -1236,7 +1088,7 @@ mod sw_scalar
 
     fn banded_sw<S>(d: &[u8], q: &[u8], go: u32, ge: u32, score: &S) -> (Vec<u8>, Vec<u8>)
     where
-        S: Fn(u8, u8) -> i8
+        S: Fn(u8, u8) -> Option<i8>
     {
         let d_len = d.len();
         let q_len = q.len();
@@ -1256,7 +1108,7 @@ mod sw_scalar
                 let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
                 let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
 
-                let pair = score(d[i-1], q[j-1]);
+                let pair = score(d[i-1], q[j-1]).unwrap();
                 let ext = match pair > 0
                 {
                     true  => prev_h[j-1].saturating_add(pair.unsigned_abs() as u32),
@@ -1294,7 +1146,6 @@ mod sw_scalar
                 d_best.insert(0, d[i-1]);
                 q_best.insert(0, b'-');
                 i = i - 1;
-                // j = j - 1;
                 continue;
             }
 
@@ -1302,7 +1153,6 @@ mod sw_scalar
             {
                 d_best.insert(0, b'-');
                 q_best.insert(0, q[j-1]);
-                // i = i - 1;
                 j = j - 1;
                 continue;
             }
@@ -1321,7 +1171,7 @@ mod sw_scalar
 
     pub fn smith_waterman_scalar<S>(d: &[u8], q: &[u8], go: u8, ge: u8, flag: &AlignFlag, score: S) -> Result<AlignResult, AlignErr>
     where
-        S: Fn(u8, u8) -> i8
+        S: Fn(u8, u8) -> Option<i8>
     {
         let (d_seq, q_seq) = match (d.is_ascii(), q.is_ascii())
         {
