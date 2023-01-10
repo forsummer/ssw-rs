@@ -43,6 +43,13 @@ enum AlignEnd
 }
 
 /// Defines several types of errors that can occur when running alignment
+/// 
+/// `AlignErr` already implements [`std::fmt::Display`] trait, so it can be output via [`println!`]
+/// 
+/// ### Variants
+/// * `OverFlow`: Numerical overflow error during calculation
+/// * `IllegallChar`: Database or query sequence contain illegal character
+/// * `GetScoreErr`: There is no corresponding score for character pairs in the scoring rules
 pub enum AlignErr
 {
     /// Numerical overflow error during calculation
