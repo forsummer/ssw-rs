@@ -63,14 +63,15 @@ mod blosum
   
     /// Wrapping of scoring matrix **blosum50**
     /// 
+    /// When blosum50() was called, it will return a closure like `Fn(u8, u8) -> Option<i8>`, this closure accept a letter pairs.
+    /// If there is an associated score of letter pairs in the score matrix, the closure will return the score, else closure return `None`
+    /// 
     /// ### Example
     /// ```rust
     /// use score::blosum50;
     /// 
     /// fn main()
     /// {
-    ///     // When blosum50() was called, it will return a closure like `Fn(u8, u8) -> Option<i8>`, this closure accept a letter pairs.
-    ///     // If there is an associated score of letter pairs in the score matrix, the closure will return the score, else closure return `None`
     ///     let blosum50_mat = blosum50();
     ///     // In this case, the type of `blosum50_mat` is `Box<Fn(u8, u8) -> Option<i8>>`.
     ///     
