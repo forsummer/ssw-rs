@@ -12,6 +12,7 @@ mod blosum
     /// 
     /// fn main()
     /// {
+    ///     // In this case, type of `blosum62_mat` is `Fn(u8, u8) -> Option<i8>`
     ///     let blosum62_mat = blosum62();
     ///    
     ///     // Character pairs "A - H" corresponding to score "-2", so the closure return `Some(-2)`.
@@ -72,8 +73,8 @@ mod blosum
     /// 
     /// fn main()
     /// {
-    ///     let blosum50_mat = blosum50();
     ///     // In this case, the type of `blosum50_mat` is `Box<Fn(u8, u8) -> Option<i8>>`.
+    ///     let blosum50_mat = blosum50();
     ///     
     ///     // In scoring matrix `blosum50`, character pairs "A - H" corresponding to score "-2"
     ///     // So, the closure return `Some(-2)`.
@@ -128,16 +129,17 @@ mod pam
 {
     /// Wrapping of scoring matrix **pam120**
     /// 
+    /// When `pam120()` was called, a closure like `Box<Fn(u8, u8) -> Option<i8>>` will be returned.
+    /// If there is an associated score of letter pairs in the score matrix, the closure will return the score, else closure return `None`
+    /// 
     /// ### Example
     /// ```rust
     /// use score::pam120;
     /// 
     /// fn main()
     /// {
-    ///     // When `pam120()` was called, a closure like `Box<Fn(u8, u8) -> Option<i8>>` will be returned.
-    ///     // If there is an associated score of letter pairs in the score matrix, the closure will return the score, else closure return `None`
-    ///     let pam120_mat = pam120();
     ///     // In this case, the type of `pam120_mat` is `Box<Fn(u8, u8) -> Option<i8>>`.
+    ///     let pam120_mat = pam120();
     ///
     ///     // In scoring matrix `pam120`, character pairs "A - H" corresponding to score "-3".
     ///     // So, the closure return `Some(-3)`.
