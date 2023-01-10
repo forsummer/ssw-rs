@@ -766,8 +766,11 @@ mod sw_avx2
     /// 1. `flag` equal to `AlignFlag::End`, function will find alignment **endpoint** and **optimal score** only.
     /// 2. `flag` equal to `AlignFlag::Path`, the function will find **startpoint/endpoint** of alignment, and **optimal score** and **best trace back path**.
     ///
-    /// ***Scoring Rules:***: As we all know, Smith-waterman algorithm evaluates the similarity of two sequences based on a score matrix,
-    /// such as **blosum50**, **blosum62** or a user-defined score rule. Thus, `ssw` library provides several scoring matrices wrapped in closures.
+    /// ***Scoring Rules:***:
+    /// As we all know, Smith-waterman algorithm evaluates the similarity of two sequences
+    /// based on a score matrix, such as **blosum50**, **blosum62** or a user-defined score rule.
+    /// Thus, `ssw` library provides [`blosum50`](fn@crate::score::blosum50), [`blosum62`](fn@crate::score::blosum62),
+    /// [`pam120`](fn@crate::score::pam120) scoring matrices wrapped in closures.
     /// Therefore, if you want to use custom scoring rule, just wrap it in closure like `Fn(u8, u8) -> Option<i8>` and pass it to `smith_waterman_avx2` by parameter `f`.
     /// 
     /// ### Arguments
