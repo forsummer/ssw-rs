@@ -101,18 +101,27 @@ impl std::fmt::Display for AlignErr
 /// If only find the best alignment endpoint with [`smith_waterman_avx2`](fn@crate::pairwise::smith_waterman_avx2),
 /// then `AlignResult` only contain the **end position** of **best alignment** and **optimal alignment score**.
 /// Otherwise, `AlignResult` will also contain **start** and **end** position of best aignment on **database sequence** and **query sequence** and **best tracing back path** on sequence.
+/// 
+/// ### Fields
+/// * `d_start`: Best alignment start position on **database sequence**
+/// * `q_start`: Start position on **query sequence**
+/// * `d_end`: Best alignment end position on **database sequence**
+/// * `q_end`: End position on **query sequence**
+/// * `d_best`: Best tracing back path on **database sequence**
+/// * `q_best`: Best tracing back path on **query sequence**
+/// * `opt`: **Optimal score** of pairwise alignment
 pub struct AlignResult
 {
-    /// Best alignment start position on **database sequence**.
+    /// Best alignment start position on **database sequence**
     pub d_start: Option<usize>,
 
-    /// Start position on **query sequence**.
+    /// Start position on **query sequence**
     pub q_start: Option<usize>,
 
-    /// Best alignment end position on **database sequence**.
+    /// Best alignment end position on **database sequence**
     pub d_end: usize,
 
-    /// End position on **query sequence**.
+    /// End position on **query sequence**
     pub q_end: usize,
 
     /// Best tracing back path on **database sequence**
