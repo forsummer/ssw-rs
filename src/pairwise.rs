@@ -32,7 +32,8 @@ macro_rules! get_mut_unchecked
     };
 }
 
-/// Used to control behavior of `smith_waterman_avx2` and `smith_waterman_scalar` function
+/// Used to control behavior of [`smith_waterman_avx2`](fn@crate::pairwise::smith_waterman_avx2)
+/// and [`smith_waterman_scalar`](fn@crate::pairwise::smith_waterman_scalar) function
 pub enum AlignFlag { End, Path }
 
 enum AlignEnd
@@ -43,6 +44,13 @@ enum AlignEnd
 }
 
 /// Defines several types of errors that can occur when running alignment
+/// 
+/// `AlignErr` already implements [`std::fmt::Display`] trait, so it can be output via [`println!`]
+/// 
+/// ### Variants
+/// * `OverFlow`: Numerical overflow error during calculation
+/// * `IllegallChar`: Database or query sequence contain illegal character
+/// * `GetScoreErr`: There is no corresponding score for character pairs in the scoring rules
 pub enum AlignErr
 {
     /// Numerical overflow error during calculation
@@ -90,20 +98,30 @@ impl std::fmt::Display for AlignErr
 }
 
 /// Store alignment result of smith-waterman.
-/// If only find the best alignment endpoint with `smith_waterman_avx2`, then `AlignResult` only contain the **end position** of **best alignment** and **optimal alignment score**.
+/// If only find the best alignment endpoint with [`smith_waterman_avx2`](fn@crate::pairwise::smith_waterman_avx2),
+/// then `AlignResult` only contain the **end position** of **best alignment** and **optimal alignment score**.
 /// Otherwise, `AlignResult` will also contain **start** and **end** position of best aignment on **database sequence** and **query sequence** and **best tracing back path** on sequence.
+/// 
+/// ### Fields
+/// * `d_start`: Best alignment start position on **database sequence**
+/// * `q_start`: Start position on **query sequence**
+/// * `d_end`: Best alignment end position on **database sequence**
+/// * `q_end`: End position on **query sequence**
+/// * `d_best`: Best tracing back path on **database sequence**
+/// * `q_best`: Best tracing back path on **query sequence**
+/// * `opt`: **Optimal score** of pairwise alignment
 pub struct AlignResult
 {
-    /// Best alignment start position on **database sequence**.
+    /// Best alignment start position on **database sequence**
     pub d_start: Option<usize>,
 
-    /// Start position on **query sequence**.
+    /// Start position on **query sequence**
     pub q_start: Option<usize>,
 
-    /// Best alignment end position on **database sequence**.
+    /// Best alignment end position on **database sequence**
     pub d_end: usize,
 
-    /// End position on **query sequence**.
+    /// End position on **query sequence**
     pub q_end: usize,
 
     /// Best tracing back path on **database sequence**
@@ -748,19 +766,7 @@ mod sw_avx2
     }
 
     /// `Smith-Waterman` algorithm implemention accelerated by **AVX2**
-    /// 
-    /// ***Function's working mode***:
-    /// 1. Find alignment **end position** and calculating **optimal score** only.
-    /// 2. Find alignment **start/end position**, calculating **optimal score** and find **best trace path**.
     ///  
-    /// ***Select the working mode***: function's working mode depend on the values of parameter `flag` (type: [`AlignFlag`](enum@AlignFlag))
-    /// 1. `flag` equal to `AlignFlag::End`, function will find alignment **endpoint** and **optimal score** only.
-    /// 2. `flag` equal to `AlignFlag::Path`, the function will find **startpoint/endpoint** of alignment, and **optimal score** and **best trace back path**.
-    ///
-    /// ***Scoring Rules:***: As we all know, Smith-waterman algorithm evaluates the similarity of two sequences based on a score matrix,
-    /// such as **blosum50**, **blosum62** or a user-defined score rule. Thus, `ssw` library provides several scoring matrices wrapped in closures.
-    /// Therefore, if you want to use custom scoring rule, just wrap it in closure like `Fn(u8, u8) -> Option<i8>` and pass it to `smith_waterman_avx2` by parameter `f`.
-    /// 
     /// ### Arguments
     /// * `d`: Database sequence 
     /// * `q`: Query sequence
@@ -769,6 +775,26 @@ mod sw_avx2
     /// * `flag`: Controls the operating mode of this function
     /// * `f`: Scoring rules
     /// 
+    /// ### Function's working mode
+    /// * Find alignment **end position** and calculating **optimal score** only.
+    /// * Find alignment **start/end position**, calculating **optimal score** and find **best trace path**.
+    ///  
+    /// ### Select the working mode
+    /// function's working mode depend on the values of parameter `flag` (type: [`AlignFlag`](enum@crate::pairwise::AlignFlag))
+    /// * `flag` equal to `AlignFlag::End`, function will find alignment **endpoint** and **optimal score** only.
+    /// * `flag` equal to `AlignFlag::Path`, the function will find **startpoint/endpoint** of alignment, and **optimal score** and **best trace back path**.
+    ///
+    /// ### Scoring Rules
+    /// As we all know, Smith-waterman algorithm evaluates the similarity of two sequences
+    /// based on a score matrix, such as **blosum50**, **blosum62** or a user-defined score rule.
+    /// Thus, `ssw` library provides [`blosum50`](fn@crate::score::blosum50), [`blosum62`](fn@crate::score::blosum62),
+    /// [`pam120`](fn@crate::score::pam120) scoring matrices wrapped in closures.
+    /// Therefore, if you want to use custom scoring rule, just wrap it in closure like `Fn(u8, u8) -> Option<i8>` and pass it to `smith_waterman_avx2` by parameter `f`.
+    ///
+    /// ### Error Handle
+    /// Several errors that can occur during smith-waterman-avx2 execution are wrapping in [`AlignErr`](enum@crate::pairwise::AlignErr).
+    /// When an error occurs, the function returns `Err(AignErr)`, so the function should be called with error handling.
+    /// 
     /// ### Example1: Find endpoint and optimal score only
     /// ```rust
     /// use ssw::score::blosum50;
@@ -776,18 +802,25 @@ mod sw_avx2
     /// 
     /// fn main()
     /// {
-    ///     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes(); // Database sequence
-    ///     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();    // Query sequence
-    /// 
-    ///     let go = 3; // Gap open penalty
-    ///     let ge = 2; // Gap extend penalty
+    ///     // Database sequence
+    ///     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
     ///     
+    ///     // Query sequence
+    ///     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();
+    /// 
+    ///     // Gap open penalty
+    ///     let go = 3; 
+    ///     
+    ///     // Gap extend penalty
+    ///     let ge = 2; 
+    ///    
     ///     let flag = AlignFlag::End;
     ///     
     ///     // Scoring rule: bosum50 scoring matrix
     ///     let pair = blosum50();
     /// 
-    ///     // `flag` equal to `AlignFlag::End`, therefore `smith_waterman_avx2` will find alignment endpoint and optimal score only.
+    ///     // Parameter `flag` equal to `AlignFlag::End`,
+    ///     // means find algnment endpoint and optimal score only.
     ///     let res = smith_waterman_avx2(d, q, go, ge, &flag, &pair)
     ///         .map_or_else(|err| panic!("{}", err), |res| res);
     /// 
@@ -805,11 +838,17 @@ mod sw_avx2
     /// 
     /// fn main()
     /// {
-    ///     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes(); // Database sequence
-    ///     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();    // Query sequence
+    ///     // Database sequence
+    ///     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
+    ///     
+    ///     // Query sequence
+    ///     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();
     /// 
-    ///     let go = 3; // Gap open penalty
-    ///     let ge = 2; // Gap extend penalty
+    ///     // Gap open penalty
+    ///     let go = 3;
+    ///     
+    ///     // Gap extend penalty
+    ///     let ge = 2; 
     /// 
     ///     let flag = AlignFlag::Path;
     /// 
