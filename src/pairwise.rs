@@ -1072,6 +1072,9 @@ mod sw_scalar
                     opt_pos.0 = i;
                     opt_pos.1 = current_h.iter().position(|h| *h == opt_var).unwrap();
                 }
+
+                left_f = 0;
+                left_h = 0;
                 swap::<Vec<u32>>(&mut current_h, &mut prev_h);
             }
         }
