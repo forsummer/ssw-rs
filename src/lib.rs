@@ -1,5 +1,5 @@
 //! ### SSW: A fastest striped-smith-waterman implementation in Rust
-//! SSW is the most fastest Rust implementation of smith-waterman algorithm,
+//! SSW is the most fastest Rust implementation of **smith-waterman** algorithm,
 //! which use **AVX2** instruction to parallelizez the algorithm in data-level.
 //! It can be used to alignment two sequences, return **best aignment score**,
 //! **alignment end** and **optimal traceback path**.
@@ -43,7 +43,41 @@
 //!     let align_res = smith_waterman_avx2(d, q, go, ge, &flag, &pair_score)
 //!         .map_or_else(|err| panic!("{}", err), |res| res);
 //!     
-//!     println!("{}", res);
+//!     println!("{}", align_res);
+//!     // `AlignResult` has implemented `std::fmt::Display` trait.
+//!     // Therefore, the alignment results can be printed directly,
+//!     // the printed results are as follows:
+//!     //
+//!     // optimal_alignment_score: 216, d_start 1, d_end: 33, q_start 1, q_end: 30
+//! 	//
+//! 	// d_best: 1 CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA 33
+//!   	//           ||||||||||||*|||||||||||   |||||| 
+//! 	// q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
+//! }
+//! ```
+//! 
+//! ### Example: Use serial implementation of smith-waterman
+//! ```rust
+//! use ssw::score::blosum50;
+//! use ssw::pairwise::{ AlignFlag, smith_waterman_scalar };
+//!  
+//! fn main()
+//! {
+//!     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
+//!     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();
+//!      
+//!     let go = 3;
+//!     let ge = 2;
+//!     let flag = AlignFlag::Path;
+//!     let pair_score = blosum50();
+//!      
+//!     // `smith_waterman_avx2` and `smith_waterman_scalar` accept the same parameters,
+//!     // the difference being that the calculation speed of `smith_waterman_scalar`
+//!     // is much slower than `smith_waterman_avx2`
+//!     let align_res = smith_waterman_scalar(d, q, go, ge, &flag, &pair_score)
+//!         .map_or_else(|err| panic!("{}", err), |res| res);
+//!      
+//!     println!("{}", align_res);
 //!     // `AlignResult` has implemented `std::fmt::Display` trait.
 //!     // Therefore, the alignment results can be printed directly,
 //!     // the printed results are as follows:
