@@ -1211,6 +1211,84 @@ mod sw_scalar
         (d_best, q_best)
     }
 
+    /// Serial implementation of smith-waterman algorithm, **much slower** than [`smith_waterman_avx2`](fn@crate::pairwise::smith_waterman_avx2)
+    /// 
+    /// Why do we need a serial implementation?
+    /// Because the maximum computational accuracy of `smith_waterman_avx2` is u16[0-65535],
+    /// while `smith_waterman_scalar` can reach u32[0-4294967295].
+    /// Therefore, if a numerical overflow error occurs in `smith_waterman_avx2`,
+    /// `smith_waterman_scalar` can be used instead.
+    /// 
+    /// ### Arguments
+    /// * `d`: Database sequence 
+    /// * `q`: Query sequence
+    /// * `go`: Gap open penalty points
+    /// * `ge`: Gap extend penalty points
+    /// * `flag`: Controls the operating mode of this function
+    /// * `f`: Scoring rules
+    /// 
+    /// ### Example: Find alignment endpoint and optimal score only
+    /// ```rust
+    /// use ssw::score::blosum50;
+    /// use ssw::pairwise::{ AlignFlag, smith_waterman_scalar };
+    /// 
+    /// fn main()
+    /// {
+    ///     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
+    ///     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();
+    ///       
+    ///     let go = 3;
+    ///     let ge = 2;
+    ///     let flag = AlignFlag::End;
+    ///     let pair_score = blosum50();
+    ///       
+    ///     // `smith_waterman_avx2` and `smith_waterman_scalar` accept the same parameters,
+    ///     // the difference being that the calculation speed of `smith_waterman_scalar`
+    ///     // is much slower than `smith_waterman_avx2`
+    ///     let align_res = smith_waterman_scalar(d, q, go, ge, &flag, &pair_score)
+    ///         .map_or_else(|err| panic!("{}", err), |res| res);
+    ///       
+    ///     println!("{}", align_res);
+    ///     // `AlignResult` has implemented `std::fmt::Display` trait.
+    ///     // Therefore, the alignment results can be printed directly,
+    ///     // the printed results are as follows:
+    ///     //
+    ///     // optimal_alignment_score: 216, d_start 1, d_end: 33, q_start 1, q_end: 30
+    /// }
+    /// ```
+    /// 
+    /// ### Example2: Find startpoint, endpoint, optimal score and best trace back path
+    /// ```rust
+    /// use ssw::score::blosum50;
+    /// use ssw::pairwise::{ AlignFlag, smith_waterman_scalar };
+    /// fn main()
+    /// {
+    ///     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
+    ///     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();
+    ///       
+    ///     let go = 3;
+    ///     let ge = 2;
+    ///     let flag = AlignFlag::Path;
+    ///     let pair_score = blosum50();
+    ///       
+    ///     // `smith_waterman_avx2` and `smith_waterman_scalar` accept the same parameters,
+    ///     // the difference being that the calculation speed of `smith_waterman_scalar`
+    ///     // is much slower than `smith_waterman_avx2`
+    ///     let align_res = smith_waterman_scalar(d, q, go, ge, &flag, &pair_score)
+    ///         .map_or_else(|err| panic!("{}", err), |res| res);
+    ///       
+    ///     println!("{}", align_res);
+    ///     // `AlignResult` has implemented `std::fmt::Display` trait.
+    ///     // Therefore, the alignment results can be printed directly,
+    ///     // the printed results are as follows:
+    ///     //
+    ///     // optimal_alignment_score: 216, d_start 1, d_end: 33, q_start 1, q_end: 30
+    /// 	//
+    /// 	// d_best: 1 CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA 33
+    ///   	//           ||||||||||||*|||||||||||   |||||| 
+    /// 	// q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
+    /// }
+    /// ```
     pub fn smith_waterman_scalar<S>(d: &[u8], q: &[u8], go: u8, ge: u8, flag: &AlignFlag, score: S) -> Result<AlignResult, AlignErr>
     where
         S: Fn(u8, u8) -> Option<i8>
