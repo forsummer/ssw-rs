@@ -437,6 +437,7 @@ mod sw_avx2
         let mut e_store = vec![M256Epu8::fill(0); seg_num];
         let mut h_store = vec![M256Epu8::fill(0); seg_num];
         let mut h_buffer = vec![M256Epu8::fill(0); seg_num];
+        let mut h_buffer_max = vec![M256Epu8::fill(0); seg_num];
 
         let mut opt = 0;
         let mut pos = (0, 0);
@@ -527,17 +528,28 @@ mod sw_avx2
                 if tmp > opt
                 {
                     opt = tmp;
-                    for (j, h) in h_buffer.iter().enumerate()
-                    {
-                        if h.contains(opt)
-                        {
-                            pos.0 = i;
-                            pos.1 = h.position(opt) * seg_num + j;
-                            break;
-                        }
-                    }
+                    pos.0 = i;
+                    h_buffer_max = h_buffer.clone();
+
+                    // for (j, h) in h_buffer.iter().enumerate()
+                    // {
+                    //     if h.contains(opt)
+                    //     {
+                    //         pos.0 = i;
+                    //         pos.1 = h.position(opt) * seg_num + j;
+                    //         break;
+                    //     }
+                    // }
                 }
                 swap::<Vec<M256Epu8>>(&mut h_store, &mut h_buffer);
+            }
+
+            for (j, h) in h_buffer_max.iter().enumerate()
+            {
+                if h.contains(opt)
+                {
+                    pos.1 = h.position(opt) * seg_num + j;
+                }
             }
         }
         else
@@ -628,6 +640,7 @@ mod sw_avx2
         let mut h_store = vec![M256Epu16::fill(0); seg_num];
         let mut e_store = vec![M256Epu16::fill(0); seg_num];
         let mut h_buffer = vec![M256Epu16::fill(0); seg_num];
+        let mut h_buffer_max = vec![M256Epu16::fill(0); seg_num];
 
         let mut opt = 0;
         let mut pos = (0, 0);
@@ -719,17 +732,28 @@ mod sw_avx2
                 if tmp > opt
                 {
                     opt = tmp;
-                    for (j, h) in h_buffer.iter().enumerate()
-                    {
-                        if h.contains(opt)
-                        {
-                            pos.0 = i;
-                            pos.1 = h.position(opt) * seg_num + j;
-                            break;
-                        }
-                    }
+                    pos.0 = i;
+                    h_buffer_max = h_buffer.clone();
+
+                    // for (j, h) in h_buffer.iter().enumerate()
+                    // {
+                    //     if h.contains(opt)
+                    //     {
+                    //         pos.0 = i;
+                    //         pos.1 = h.position(opt) * seg_num + j;
+                    //         break;
+                    //     }
+                    // }
                 }
                 swap::<Vec<M256Epu16>>(&mut h_buffer, &mut h_store);
+            }
+            
+            for (j, h) in h_buffer_max.iter().enumerate()
+            {
+                if h.contains(opt)
+                {
+                    pos.1 = h.position(opt) * seg_num + j;
+                }
             }
         }
         else
