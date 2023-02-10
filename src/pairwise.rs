@@ -441,7 +441,7 @@ mod sw_avx2
         let mut opt = 0;
         let mut pos = (0, 0);
         let mut max = M256Epu8::fill(0);
-        let mut is_overflow = 0;
+        // let mut is_overflow = 0;
 
         if terminater == 0
         {
@@ -500,19 +500,29 @@ mod sw_avx2
                 h_buffer.iter().for_each(|h| max = max_epu8(max, *h));
                 let tmp = max.get_max();
 
-                if tmp == overflow_threshold
+                if tmp >= overflow_threshold
                 {
-                    is_overflow = is_overflow + 1;
-                    if is_overflow > 1
+                    Err(AlignErr::OverFlow
                     {
-                        Err(AlignErr::OverFlow
-                        {
-                            file: file!().to_string(),
-                            line: line!() as usize,
-                            msg: "Score out of u8 range".to_string()
-                        })?
-                    }
+                        file: file!().to_string(),
+                        line: line!() as usize,
+                        msg: "Score out of u8 range".to_string()
+                    })?
                 }
+
+                // if tmp == overflow_threshold
+                // {
+                //     is_overflow = is_overflow + 1;
+                //     if is_overflow > 1
+                //     {
+                //         Err(AlignErr::OverFlow
+                //         {
+                //             file: file!().to_string(),
+                //             line: line!() as usize,
+                //             msg: "Score out of u8 range".to_string()
+                //         })?
+                //     }
+                // }
 
                 if tmp > opt
                 {
@@ -622,7 +632,7 @@ mod sw_avx2
         let mut opt = 0;
         let mut pos = (0, 0);
         let mut max = M256Epu16::fill(0);
-        let mut is_overflow = 0;
+        // let mut is_overflow = 0;
 
         if terminater == 0
         {
@@ -682,19 +692,29 @@ mod sw_avx2
 
                 let tmp = max.get_max();
 
-                if tmp == overflow_threshold
+                if tmp >= overflow_threshold
                 {
-                    is_overflow = is_overflow + 1;
-                    if is_overflow > 1
+                    Err (AlignErr::OverFlow
                     {
-                        Err (AlignErr::OverFlow
-                        {
-                            file: file!().to_string(),
-                            line: line!() as usize, 
-                            msg: "Score out of u16 range".to_string(),
-                        })?
-                    }
+                        file: file!().to_string(),
+                        line: line!() as usize, 
+                        msg: "Score out of u16 range".to_string(),
+                    })?
                 }
+
+                // if tmp == overflow_threshold
+                // {
+                //     is_overflow = is_overflow + 1;
+                //     if is_overflow > 1
+                //     {
+                //         Err (AlignErr::OverFlow
+                //         {
+                //             file: file!().to_string(),
+                //             line: line!() as usize, 
+                //             msg: "Score out of u16 range".to_string(),
+                //         })?
+                //     }
+                // }
 
                 if tmp > opt
                 {
