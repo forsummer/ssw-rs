@@ -119,10 +119,10 @@ pub struct AlignResult
     pub q_start: Option<usize>,
 
     /// Best alignment end position on **database sequence**
-    pub d_end: usize,
+    pub d_end: Option<usize>,
 
     /// End position on **query sequence**
-    pub q_end: usize,
+    pub q_end: Option<usize>,
 
     /// Best tracing back path on **database sequence**
     pub d_best: Option<Vec<u8>>,
@@ -148,8 +148,8 @@ impl std::fmt::Display for AlignResult
             let align_res = tabular::Table::new("\n{:<} {:<}, {:<} {:<}, {:<} {:<}")
                 .with_row(tabular::row!(
                     "optimal_alignment_score:", self.opt,
-                    "d_end:", self.d_end,
-                    "q_end:", self.q_end));
+                    "d_end:", self.d_end.unwrap(),
+                    "q_end:", self.q_end.unwrap()));
             return write!(f, "{}", align_res)
         }
 
@@ -159,9 +159,9 @@ impl std::fmt::Display for AlignResult
                 .with_row(tabular::row!(
                     "optimal_alignment_score:", self.opt,
                     "d_start", self.d_start.expect("Should contain d_best start position"),
-                    "d_end:", self.d_end,
+                    "d_end:", self.d_end.unwrap(),
                     "q_start", self.q_start.expect("Should contain q_best start position"),
-                    "q_end:", self.q_end));
+                    "q_end:", self.q_end.unwrap()));
             
             let d_best = self.d_best.as_ref().expect("Should contain d_best");
             let q_best = self.q_best.as_ref().expect("Should contain q_best");
@@ -198,6 +198,14 @@ impl std::fmt::Display for AlignResult
             }
 
             return write!(f, "{}{}", align_res, best)
+        }
+        
+        if let AlignFlag::OptOnly = self.flag
+        {
+            let align_res = tabular::Table::new("\n {:<} {:<}\n")
+                .with_row(tabular::row!("optimal_alignment_score: ", self.opt));
+
+            return write!(f, "{}", align_res)
         }
 
         unreachable!()
@@ -955,17 +963,33 @@ mod sw_avx2
             if let AlignEnd::U8 { var, pos } = ext_end
             {
                 let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
-                return Ok( AlignResult { d_start: None, q_start: None, d_end, q_end,
-                    d_best: None, q_best: None, opt, flag: AlignFlag::End
-                } )
+                return Ok( AlignResult
+                    {
+                        d_start: None,
+                        q_start: None,
+                        d_end: Some(d_end),
+                        q_end: Some(q_end),
+                        d_best: None,
+                        q_best: None,
+                        opt, flag:
+                        AlignFlag::End
+                    } )
             }
             
             if let AlignEnd::U16 { var, pos } = ext_end 
             {
                 let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
-                return Ok( AlignResult { d_start: None, q_start: None, d_end, q_end,
-                    d_best: None, q_best: None, opt, flag: AlignFlag::End
-                } )
+                return Ok( AlignResult
+                    {
+                        d_start: None,
+                        q_start: None,
+                        d_end: Some(d_end),
+                        q_end: Some(q_end),
+                        d_best: None,
+                        q_best: None,
+                        opt,
+                        flag: AlignFlag::End
+                    } )
             }
 
             unreachable!()
@@ -996,8 +1020,17 @@ mod sw_avx2
                 let d_start = Some(d_start);
                 let q_start = Some(q_start);
 
-                return Ok( AlignResult { d_start, q_start, d_end, q_end,
-                    d_best, q_best, opt, flag: AlignFlag::Path } )
+                return Ok( AlignResult
+                    {
+                        d_start,
+                        q_start,
+                        d_end: Some(d_end),
+                        q_end: Some(q_end),
+                        d_best,
+                        q_best,
+                        opt,
+                        flag: AlignFlag::Path
+                    } )
             }
             
             if let AlignEnd::U16 { var, pos } = ext_end
@@ -1023,8 +1056,17 @@ mod sw_avx2
                 let d_start = Some(d_start);
                 let q_start = Some(q_start);
 
-                return Ok( AlignResult { d_start, q_start, d_end, q_end,
-                    d_best, q_best, opt, flag: AlignFlag::Path } )
+                return Ok( AlignResult
+                    {
+                        d_start,
+                        q_start,
+                        d_end: Some(d_end),
+                        q_end: Some(q_end),
+                        d_best,
+                        q_best,
+                        opt,
+                        flag: AlignFlag::Path
+                    } )
             }
 
             unreachable!()
@@ -1369,9 +1411,17 @@ mod sw_scalar
 
         if let AlignFlag::End = flag
         {
-            return Ok ( AlignResult { d_start: None, q_start: None, d_end, q_end,
-                d_best: None, q_best: None, opt, flag: AlignFlag::End
-            } )
+            return Ok ( AlignResult
+                {
+                    d_start: None,
+                    q_start: None,
+                    d_end: Some(d_end),
+                    q_end: Some(q_end),
+                    d_best: None,
+                    q_best: None,
+                    opt,
+                    flag: AlignFlag::End
+                } )
         }
 
         if let AlignFlag::Path = flag
@@ -1398,8 +1448,17 @@ mod sw_scalar
             let d_start = Some(d_start+1);
             let q_start = Some(q_start+1);
 
-            return Ok ( AlignResult { d_start, q_start, d_end, q_end,
-                d_best, q_best, opt, flag: AlignFlag::Path } )
+            return Ok ( AlignResult
+                {
+                    d_start,
+                    q_start,
+                    d_end: Some(d_end),
+                    q_end: Some(q_end),
+                    d_best,
+                    q_best,
+                    opt,
+                    flag: AlignFlag::Path
+                } )
         }
 
         unreachable!()
