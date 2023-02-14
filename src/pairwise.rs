@@ -34,7 +34,7 @@ macro_rules! get_mut_unchecked
 
 /// Used to control behavior of [`smith_waterman_avx2`](fn@crate::pairwise::smith_waterman_avx2)
 /// and [`smith_waterman_scalar`](fn@crate::pairwise::smith_waterman_scalar) function
-pub enum AlignFlag { End, Path }
+pub enum AlignFlag { End, Path, OptOnly }
 
 enum AlignEnd
 {
