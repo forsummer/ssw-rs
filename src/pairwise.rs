@@ -817,6 +817,199 @@ mod sw_avx2
         Ok (AlignEnd::U16 { var: opt, pos })
     }
 
+    fn ssw_byte_opt_only(d: &[u8], q: &[u8], go: u8, ge: u8, profile: &Profile) -> Result<u32, AlignErr>
+    {
+        let go = M256Epu8::fill(go);
+        let ge = M256Epu8::fill(ge);
+
+        let (bias, profile) = match profile
+        {
+            Profile::Byte { bias, profile } => (*bias, profile),
+            _ => panic!("Unacceptable profile"),
+        };
+
+        let overflow_threshold = u8::MAX.saturating_sub(bias);
+
+        let seg_num = (q.len() + 31) / 32;
+        let bias = M256Epu8::fill(bias);
+        let mut f = M256Epu8::fill(0);
+        let mut e_store = vec![M256Epu8::fill(0); seg_num];
+        let mut h_store = vec![M256Epu8::fill(0); seg_num];
+        let mut h_buffer = vec![M256Epu8::fill(0); seg_num];
+
+        let mut opt = 0;
+        let mut max = M256Epu8::fill(0);
+
+        for r in d.iter().copied()
+        {
+            f.zero_out();
+
+            let mut prev_h = *h_store.last().unwrap();
+            prev_h = prev_h << 1;
+
+            let profile_col = get_unchecked!(profile, (r - 65) as usize);
+            for j in 0..seg_num
+            {
+                let score = *get_unchecked!(profile_col,  j);
+                let prev_e = *get_unchecked!(e_store, j);
+
+                let h = max_epu8(max_epu8(prev_h + score - bias, prev_e), f);
+
+                let h_sub_go = h - go;
+
+                let e = max_epu8(h_sub_go, prev_e - ge);
+                f = max_epu8(h_sub_go, f - ge);
+
+                let e_store_mut_ref = get_mut_unchecked!(e_store, j);
+                *e_store_mut_ref = e;
+
+                let h_buffer_mut_ref = get_mut_unchecked!(h_buffer, j);
+                *h_buffer_mut_ref = h;
+
+                prev_h = *get_unchecked!(h_store, j);
+            }
+
+            f = f << 1;
+            let mut j = 0;
+            while f.anyelement_gt(&(*get_unchecked!(h_buffer, j) - go))
+            {
+                let h_buffer_uncorrect = *get_unchecked!(h_buffer, j);
+                let h_buffer_mut_ref = get_mut_unchecked!(h_buffer, j);
+                *h_buffer_mut_ref = max_epu8(f, h_buffer_uncorrect);
+
+                let h_buffer_correct = *get_unchecked!(h_buffer, j);
+                let e_store_uncorrect = *get_unchecked!(e_store, j);
+                let e_store_mut_ref = get_mut_unchecked!(e_store, j);
+                *e_store_mut_ref = max_epu8(e_store_uncorrect, h_buffer_correct - go);
+
+                f = f - ge;
+
+                j = j + 1;
+                if j >= seg_num
+                {
+                    f = f << 1;
+                    j = 0;
+                }
+            }
+
+            h_buffer.iter().for_each(|h| max = max_epu8(max, *h));
+            let tmp = max.get_max();
+
+            if tmp >= overflow_threshold
+            {
+                Err(AlignErr::OverFlow
+                {
+                    file: file!().to_string(),
+                    line: line!() as usize,
+                    msg: "Score out of u8 range".to_string()
+                })?
+            }
+
+            opt = if tmp > opt { tmp } else { opt };
+
+            swap::<Vec<M256Epu8>>(&mut h_store, &mut h_buffer);
+        }
+
+        Ok(opt as u32)
+    }
+
+    fn ssw_word_opt_only(d: &[u8], q: &[u8], go: u8, ge: u8, profile: &Profile) -> Result<u32, AlignErr>
+    {
+        let go = M256Epu16::fill(go as u16);
+        let ge = M256Epu16::fill(ge as u16);
+
+        let (bias, profile) = match profile
+        {
+            Profile::Word { bias, profile } => (*bias, profile),
+            _ => panic!("Unacceptable profile"),
+        };
+
+        let overflow_threshold = u16::MAX.saturating_sub(bias);
+        let seg_num = (q.len() + 15) / 16;
+        let bias = M256Epu16::fill(bias);
+
+        let mut f = M256Epu16::fill(0);
+        let mut h_store = vec![M256Epu16::fill(0); seg_num];
+        let mut e_store = vec![M256Epu16::fill(0); seg_num];
+        let mut h_buffer = vec![M256Epu16::fill(0); seg_num];
+
+        let mut opt = 0;
+        let mut max = M256Epu16::fill(0);
+
+        for r in d.iter().copied()
+        {
+            f.zero_out();
+
+            let mut prev_h = *h_store.last().unwrap();
+            prev_h = prev_h << 1;
+
+            let profile_col = get_unchecked!(profile, (r - 65) as usize);
+            for j in 0..seg_num
+            {
+                let score = *get_unchecked!(profile_col, j);
+                let prev_e = *get_unchecked!(e_store, j);
+
+                let h = max_epu16(max_epu16(prev_h + score - bias, prev_e), f);
+
+                let h_sub_go = h - go;
+
+                let e = max_epu16(h_sub_go, prev_e - ge);
+                f = max_epu16(h_sub_go, f - ge);
+
+                let e_store_mut_ref = get_mut_unchecked!(e_store, j);
+                *e_store_mut_ref = e;
+
+                let h_buffer_mut_ref = get_mut_unchecked!(h_buffer, j);
+                *h_buffer_mut_ref = h;
+
+                prev_h = *get_unchecked!(h_store, j);
+            }
+
+            f = f << 1;
+            let mut j = 0;
+            while f.anyelement_gt(&(*get_unchecked!(h_buffer, j) - go))
+            {
+                let h_buffer_uncorrect = *get_unchecked!(h_buffer, j);
+                let h_buffer_mut_ref = get_mut_unchecked!(h_buffer, j);
+                *h_buffer_mut_ref = max_epu16(f, h_buffer_uncorrect);
+
+                let h_buffer_correct = *get_unchecked!(h_buffer, j);
+                let e_store_uncorrect = *get_unchecked!(e_store, j);
+                let e_store_mut_ref = get_mut_unchecked!(e_store, j);
+                *e_store_mut_ref = max_epu16(e_store_uncorrect, h_buffer_correct - go);
+
+                f = f - ge;
+
+                j = j + 1;
+                if j >= seg_num
+                {
+                    f = f << 1;
+                    j = 0;
+                }
+            }
+
+            h_buffer.iter().for_each(|h| max = max_epu16(max, *h));
+
+            let tmp = max.get_max();
+
+            if tmp >= overflow_threshold
+            {
+                Err (AlignErr::OverFlow
+                {
+                    file: file!().to_string(),
+                    line: line!() as usize, 
+                    msg: "Score out of u16 range".to_string(),
+                })?
+            }
+
+            opt = if tmp > opt { tmp } else { opt };
+
+            swap::<Vec<M256Epu16>>(&mut h_buffer, &mut h_store);
+        }
+
+        Ok(opt as u32)
+    }
+
     /// `Smith-Waterman` algorithm implemention accelerated by **AVX2**
     ///  
     /// ### Arguments
@@ -945,6 +1138,34 @@ mod sw_avx2
                     msg: "Non-ascii character contain in database/query sequence".to_string(),
                 })?,
         };
+
+        if let AlignFlag::OptOnly = flag
+        {
+            let profile_byte = query_profile(&d_seq, &q_seq, ProfileType::Epu8, &f)?;
+
+            let res = match ssw_byte_opt_only(&d_seq, &q_seq, go, ge, &profile_byte)
+            {
+                Ok(opt) => opt,
+                Err(AlignErr::OverFlow { .. }) => 
+                {
+                    let profile_word = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f)?;
+                    ssw_word_opt_only(&d_seq, &q_seq, go, ge, &profile_word)?
+                },
+                _ => unreachable!(),
+            };
+
+            return Ok( AlignResult
+                {
+                    d_start: None,
+                    q_start: None,
+                    d_end: None,
+                    q_end: None,
+                    d_best: None,
+                    q_best: None,
+                    opt: res,
+                    flag: AlignFlag::OptOnly,
+                })
+        }
 
         let profile_u8 = query_profile(&d_seq, &q_seq, ProfileType::Epu8, &f)?;
         let ext_end = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile_u8)
