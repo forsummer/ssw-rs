@@ -2,4 +2,5 @@
 /.vscode
 /.fleet
 /.idea
+/benches
 /tmp
