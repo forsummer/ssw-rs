@@ -450,7 +450,6 @@ mod sw_avx2
         let mut opt = 0;
         let mut pos = (0, 0);
         let mut max = M256Epu8::fill(0);
-        // let mut is_overflow = 0;
 
         if terminater == 0
         {
@@ -519,35 +518,11 @@ mod sw_avx2
                     })?
                 }
 
-                // if tmp == overflow_threshold
-                // {
-                //     is_overflow = is_overflow + 1;
-                //     if is_overflow > 1
-                //     {
-                //         Err(AlignErr::OverFlow
-                //         {
-                //             file: file!().to_string(),
-                //             line: line!() as usize,
-                //             msg: "Score out of u8 range".to_string()
-                //         })?
-                //     }
-                // }
-
                 if tmp > opt
                 {
                     opt = tmp;
                     pos.0 = i;
                     h_buffer_max = h_buffer.clone();
-
-                    // for (j, h) in h_buffer.iter().enumerate()
-                    // {
-                    //     if h.contains(opt)
-                    //     {
-                    //         pos.0 = i;
-                    //         pos.1 = h.position(opt) * seg_num + j;
-                    //         break;
-                    //     }
-                    // }
                 }
                 swap::<Vec<M256Epu8>>(&mut h_store, &mut h_buffer);
             }
@@ -653,7 +628,6 @@ mod sw_avx2
         let mut opt = 0;
         let mut pos = (0, 0);
         let mut max = M256Epu16::fill(0);
-        // let mut is_overflow = 0;
 
         if terminater == 0
         {
@@ -723,35 +697,11 @@ mod sw_avx2
                     })?
                 }
 
-                // if tmp == overflow_threshold
-                // {
-                //     is_overflow = is_overflow + 1;
-                //     if is_overflow > 1
-                //     {
-                //         Err (AlignErr::OverFlow
-                //         {
-                //             file: file!().to_string(),
-                //             line: line!() as usize, 
-                //             msg: "Score out of u16 range".to_string(),
-                //         })?
-                //     }
-                // }
-
                 if tmp > opt
                 {
                     opt = tmp;
                     pos.0 = i;
                     h_buffer_max = h_buffer.clone();
-
-                    // for (j, h) in h_buffer.iter().enumerate()
-                    // {
-                    //     if h.contains(opt)
-                    //     {
-                    //         pos.0 = i;
-                    //         pos.1 = h.position(opt) * seg_num + j;
-                    //         break;
-                    //     }
-                    // }
                 }
                 swap::<Vec<M256Epu16>>(&mut h_buffer, &mut h_store);
             }
