@@ -1167,8 +1167,8 @@ mod sw_avx2
                 })
         }
 
-        let profile_u8 = query_profile(&d_seq, &q_seq, ProfileType::Epu8, &f)?;
-        let ext_end = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile_u8)
+        let profile_byte = query_profile(&d_seq, &q_seq, ProfileType::Epu8, &f)?;
+        let res = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile_byte)
         {
             Ok(res) => res,
             Err(AlignErr::OverFlow {..}) => 
@@ -1181,116 +1181,73 @@ mod sw_avx2
 
         if let AlignFlag::End = flag
         {
-            if let AlignEnd::U8 { var, pos } = ext_end
+            let (opt, d_end, q_end) = match res
             {
-                let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
-                return Ok( AlignResult
-                    {
-                        d_start: None,
-                        q_start: None,
-                        d_end: Some(d_end),
-                        q_end: Some(q_end),
-                        d_best: None,
-                        q_best: None,
-                        opt, flag:
-                        AlignFlag::End
-                    } )
-            }
-            
-            if let AlignEnd::U16 { var, pos } = ext_end 
-            {
-                let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
-                return Ok( AlignResult
-                    {
-                        d_start: None,
-                        q_start: None,
-                        d_end: Some(d_end),
-                        q_end: Some(q_end),
-                        d_best: None,
-                        q_best: None,
-                        opt,
-                        flag: AlignFlag::End
-                    } )
-            }
+                AlignEnd::U8  { var, pos } => (var as u32, pos.0+1, pos.1+1),
+                AlignEnd::U16 { var, pos } => (var as u32, pos.0+1, pos.1+1),
+                _ => unreachable!(),
+            };
 
-            unreachable!()
+            return Ok( AlignResult
+                {
+                    d_start: None,
+                    q_start: None,
+                    d_end: Some(d_end),
+                    q_end: Some(q_end),
+                    d_best: None,
+                    q_best: None,
+                    opt,
+                    flag: AlignFlag::End,
+                } )
         }
         
         if let AlignFlag::Path = flag
         {
-            if let AlignEnd::U8 { var, pos } = ext_end
+            let (opt, d_end, q_end) = match res
             {
-                let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
+                AlignEnd::U8  { var, pos } => (var as u32, pos.0+1, pos.1+1),
+                AlignEnd::U16 { var, pos } => (var as u32, pos.0+1, pos.1+1),
+                _ => unreachable!(),
+            };
 
-                let mut d_splited_rev = d_seq[0..d_end].to_vec();
-                let mut q_splited_rev = q_seq[0..q_end].to_vec();
-                d_splited_rev.reverse();
-                q_splited_rev.reverse();
-                
-                let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu8, &f)?;
-                let (d_start, q_start) = match ssw_byte(&d_splited_rev, &q_splited_rev, go, ge, var, &profile_rev)?
-                {
-                    AlignEnd::U8 { pos, .. } => (d_end - pos.0, q_end - pos.1),
-                    _ => unreachable!(),
-                };
-                
-                let (d_best_u8, q_best_u8) = banded_sw(&d_seq[d_start-1..d_end], &q_seq[q_start-1..q_end], go, ge, &f);
-                let d_best = Some(d_best_u8);
-                let q_best = Some(q_best_u8);
+            let mut d_splited_rev = d_seq[0..d_end].to_vec();
+            let mut q_splited_rev = q_seq[0..q_end].to_vec();
+            d_splited_rev.reverse();
+            q_splited_rev.reverse();
 
-                let d_start = Some(d_start);
-                let q_start = Some(q_start);
+            let profile_rev = match res
+            {
+                AlignEnd::U8  { .. } => query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu8, &f)?,
+                AlignEnd::U16 { .. } => query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu16, &f)?,
+                _ => unreachable!(),
+            };
 
-                return Ok( AlignResult
-                    {
-                        d_start,
-                        q_start,
-                        d_end: Some(d_end),
-                        q_end: Some(q_end),
-                        d_best,
-                        q_best,
-                        opt,
-                        flag: AlignFlag::Path
-                    } )
-            }
+            let res_rev = match profile_rev
+            {
+                Profile::Byte { .. } => ssw_byte(&d_splited_rev, &q_splited_rev, go, ge, opt as u8, &profile_rev)?,
+                Profile::Word { .. } => ssw_word(&d_splited_rev, &q_splited_rev, go, ge, opt as u16, &profile_rev)?,
+            };
+
+            let (d_start, q_start) = match res_rev
+            {
+                AlignEnd::U8  { pos, .. } => (d_end - pos.0, q_end - pos.1),
+                AlignEnd::U16 { pos, .. } => (d_end - pos.0, q_end - pos.1),
+                _ => unreachable!(),
+            };
+
+            let (d_best, q_best) = banded_sw(&d_seq[d_start-1..d_end], &q_seq[q_start-1..q_end], go, ge, &f);
             
-            if let AlignEnd::U16 { var, pos } = ext_end
-            {
-                let (opt, (d_end, q_end)) = (var as u32, (pos.0+1, pos.1+1));
-
-                let mut d_splited_rev = d_seq[0..d_end].to_vec();
-                let mut q_splited_rev = q_seq[0..q_end].to_vec();
-                d_splited_rev.reverse();
-                q_splited_rev.reverse();
-
-                let profile_rev = query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu16, &f)?;
-                let (d_start, q_start) = match ssw_word(&d_splited_rev, &q_splited_rev, go, ge, var, &profile_rev)?
+            return Ok( AlignResult
                 {
-                    AlignEnd::U16 { pos, .. } => (d_end - pos.0, q_end - pos.1),
-                    _ => unreachable!(),
-                };
-
-                let (d_best_u8, q_best_u8) = banded_sw(&d_seq[d_start-1..d_end], &q_seq[q_start-1..q_end], go, ge, &f);
-                let d_best = Some(d_best_u8);
-                let q_best = Some(q_best_u8);
-
-                let d_start = Some(d_start);
-                let q_start = Some(q_start);
-
-                return Ok( AlignResult
-                    {
-                        d_start,
-                        q_start,
-                        d_end: Some(d_end),
-                        q_end: Some(q_end),
-                        d_best,
-                        q_best,
-                        opt,
-                        flag: AlignFlag::Path
-                    } )
-            }
-
-            unreachable!()
+                    d_start: Some(d_start),
+                    q_start: Some(q_start),
+                    d_end: Some(d_end),
+                    q_end: Some(q_end),
+                    opt,
+                    d_best: Some(d_best),
+                    q_best: Some(q_best),
+                    flag: AlignFlag::Path,
+                } )
         }
 
         unreachable!()
