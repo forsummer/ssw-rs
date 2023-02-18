@@ -786,11 +786,12 @@ mod sw_avx2
         let mut e_store = vec![M256Epu8::fill(0); seg_num];
         let mut h_store = vec![M256Epu8::fill(0); seg_num];
         let mut h_buffer = vec![M256Epu8::fill(0); seg_num];
+        let mut max_col_score = vec![0; d.len()];
 
-        let mut opt = 0;
+        // let mut opt = 0;
         let mut max = M256Epu8::fill(0);
 
-        for r in d.iter().copied()
+        for (i, r) in d.iter().copied().enumerate()
         {
             f.zero_out();
 
@@ -855,11 +856,13 @@ mod sw_avx2
                 })?
             }
 
-            opt = if tmp > opt { tmp } else { opt };
+            *get_mut_unchecked!(max_col_score, i) = tmp;
+            // opt = if tmp > opt { tmp } else { opt };
 
             swap::<Vec<M256Epu8>>(&mut h_store, &mut h_buffer);
         }
 
+        let opt = *max_col_score.iter().max().unwrap();
         Ok(opt as u32)
     }
 
@@ -882,11 +885,12 @@ mod sw_avx2
         let mut h_store = vec![M256Epu16::fill(0); seg_num];
         let mut e_store = vec![M256Epu16::fill(0); seg_num];
         let mut h_buffer = vec![M256Epu16::fill(0); seg_num];
+        let mut max_col_score = vec![0; d.len()];
 
-        let mut opt = 0;
+        // let mut opt = 0;
         let mut max = M256Epu16::fill(0);
 
-        for r in d.iter().copied()
+        for (i, r) in d.iter().copied().enumerate()
         {
             f.zero_out();
 
@@ -952,11 +956,13 @@ mod sw_avx2
                 })?
             }
 
-            opt = if tmp > opt { tmp } else { opt };
+            *get_mut_unchecked!(max_col_score, i) = tmp;
+            // opt = if tmp > opt { tmp } else { opt };
 
             swap::<Vec<M256Epu16>>(&mut h_buffer, &mut h_store);
         }
 
+        let opt = *max_col_score.iter().max().unwrap();
         Ok(opt as u32)
     }
 
