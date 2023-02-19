@@ -527,11 +527,12 @@ mod sw_avx2
                 swap::<Vec<M256Epu8>>(&mut h_store, &mut h_buffer);
             }
 
-            for (j, h) in h_buffer_max.iter().enumerate()
+            'pos: for (j, h) in h_buffer_max.iter().enumerate()
             {
                 if h.contains(opt)
                 {
                     pos.1 = h.position(opt) * seg_num + j;
+                    break 'pos;
                 }
             }
         }
@@ -706,11 +707,12 @@ mod sw_avx2
                 swap::<Vec<M256Epu16>>(&mut h_buffer, &mut h_store);
             }
             
-            for (j, h) in h_buffer_max.iter().enumerate()
+            'pos: for (j, h) in h_buffer_max.iter().enumerate()
             {
                 if h.contains(opt)
                 {
                     pos.1 = h.position(opt) * seg_num + j;
+                    break 'pos;
                 }
             }
         }
