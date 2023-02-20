@@ -388,6 +388,9 @@ mod sw_avx2
                 prev_e[j] = e;
                 current_h[j] = h;
             }
+
+            left_f = 0;
+            left_h = 0;
             swap::<Vec<u16>>(&mut prev_h, &mut current_h);
         }
 
@@ -1409,6 +1412,9 @@ mod sw_scalar
                 prev_e[j] = e;
                 current_h[j] = h;
             }
+
+            left_f = 0;
+            left_h = 0;
             swap::<Vec<u32>>(&mut prev_h, &mut current_h);
         }
 
