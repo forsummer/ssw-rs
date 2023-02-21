@@ -1,4 +1,4 @@
-#[cfg(any(target_feature = "avx", target_feature = "avx2"))]
+#[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 pub mod avx2
 {    
     use std::mem::{ size_of, transmute };
@@ -417,7 +417,7 @@ pub mod avx2
 
 
 #[cfg(test)]
-#[cfg(any(target_feature = "avx", target_feature = "avx2"))]
+#[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 mod test_m256_epu16
 {
     use std::mem::transmute;
@@ -632,7 +632,7 @@ mod test_m256_epu16
 }
 
 #[cfg(test)]
-#[cfg(any(target_feature = "avx", target_feature = "avx2"))]
+#[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 mod test_m256_epu8
 {
     use std::mem::transmute;

@@ -212,7 +212,7 @@ impl std::fmt::Display for AlignResult
     }
 }
 
-#[cfg(any(target_feature = "avx", target_feature = "avx2"))]
+#[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 mod sw_avx2
 {
     use std::mem::swap;
