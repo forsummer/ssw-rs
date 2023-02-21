@@ -1621,5 +1621,7 @@ mod sw_scalar
     }
 }
 
+#[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 pub use self::sw_avx2::smith_waterman_avx2;
+
 pub use self::sw_scalar::smith_waterman_scalar;
