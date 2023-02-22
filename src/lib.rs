@@ -90,7 +90,11 @@
 //! }
 //! ```
 
+#[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 mod avx;
+
+#[cfg(all(target_feature = "avx", target_feature = "avx2"))]
+mod sse2;
 
 /// Provide wrapping of scoring matrix, such as **blosum50**, **blosum62** and **pam120**.
 /// (The scoring matrix is wrapped into a closure like `Fn(u8, u8) -> Option<i8>`)
