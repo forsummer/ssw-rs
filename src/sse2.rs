@@ -10,10 +10,26 @@ pub mod sse2
     use std::arch::x86_64::_mm_movemask_epi8;
 
     #[derive(Clone, Copy)]
-    struct M128Epu8(__m128i);
+    pub struct M128Epu8(__m128i);
 
     // #[derive(Clone, Copy)]
     // struct M128Epu16(__m128i);
+
+    impl std::cmp::PartialEq for M128Epu8
+    {
+        fn eq(&self, other: &Self) -> bool
+        {
+            unsafe { _mm_movemask_epi8(_mm_cmpeq_epi8(self.0, other.0)) == 65535 }
+        }
+    }
+
+    impl std::fmt::Debug for M128Epu8
+    {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+        {
+            f.debug_list().entries(self.to_vec().iter().rev()).finish()
+        }
+    }
 
     impl M128Epu8
     {
