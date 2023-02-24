@@ -152,6 +152,64 @@ mod test_m128_epu8
     use std::arch::x86_64::_mm_setzero_si128;
 
     #[test]
+    fn test_from_u8_slice()
+    {
+        let s = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let v1 = M128Epu8::from(&s[..]);
+        let v2 = unsafe { transmute::<[u8; 16], M128Epu8>(arr) };
+        assert_eq!(v1, v2);
+    }
+
+    #[test]
+    fn test_add()
+    {
+        let v1 = unsafe { transmute::<[u8; 16], M128Epu8>([255; 16]) };
+        let v2 = unsafe { transmute::<[u8; 16], M128Epu8>([255; 16]) };
+        let sum = unsafe { transmute::<[u8; 16], M128Epu8>([255; 16]) };
+        assert_eq!(v1 + v2, sum);
+
+        let arr1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let arr2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let arr3 = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32];
+        let v1 = unsafe { transmute::<[u8; 16], M128Epu8>(arr1) };
+        let v2 = unsafe { transmute::<[u8; 16], M128Epu8>(arr2) };
+        let sum = unsafe { transmute::<[u8; 16], M128Epu8>(arr3) };
+        assert_eq!(v1 + v2, sum);
+    }
+
+    #[test]
+    fn test_sub()
+    {
+        let v1 = unsafe { transmute::<[u8; 16], M128Epu8>([200; 16]) };
+        let v2 = unsafe { transmute::<[u8; 16], M128Epu8>([255; 16]) };
+        let res = unsafe { transmute::<[u8; 16], M128Epu8>([0; 16]) };
+        assert_eq!(v1 - v2, res);
+
+        let arr1 = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32];
+        let arr2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let arr3 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let v1 = unsafe { transmute::<[u8; 16], M128Epu8>(arr1) };
+        let v2 = unsafe { transmute::<[u8; 16], M128Epu8>(arr2) };
+        let res = unsafe { transmute::<[u8; 16], M128Epu8>(arr3) };
+        assert_eq!(v1 - v2, res);
+    }
+
+    #[test]
+    fn test_partial_eq()
+    {
+        let v1 = unsafe { transmute::<[u8; 16], M128Epu8>([200; 16]) };
+        let v2 = unsafe { transmute::<[u8; 16], M128Epu8>([255; 16]) };
+        assert!(v1 != v2);
+
+        let arr1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let arr2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let v1 = unsafe { transmute::<[u8; 16], M128Epu8>(arr1) };
+        let v2 = unsafe { transmute::<[u8; 16], M128Epu8>(arr2) };
+        assert!(v1 == v2);
+    }
+
+    #[test]
     fn test_fill()
     {
         let v1 = M128Epu8::fill(0);
