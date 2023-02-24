@@ -1,9 +1,11 @@
 #[cfg(target_feature = "sse2")]
 pub mod sse2
 {
+    use std::mem::size_of;
     use std::mem::transmute;
     use std::arch::x86_64::__m128i;
     use std::arch::x86_64::_mm_adds_epu8;
+    use std::arch::x86_64::_mm_load_si128;
     use std::arch::x86_64::_mm_subs_epu8;
     use std::arch::x86_64::_mm_set1_epi8;
     use std::arch::x86_64::_mm_xor_si128;
@@ -16,6 +18,20 @@ pub mod sse2
 
     // #[derive(Clone, Copy)]
     // struct M128Epu16(__m128i);
+
+    impl std::convert::From<&[u8]> for M128Epu8
+    {
+        fn from(s: &[u8]) -> Self
+        {
+            if s.len() * size_of::<u8>() != 16
+            {
+                panic!("The capacity of slice should equal to 16 bytes");
+            }
+            let ptr = unsafe { transmute::<*const u8, *const __m128i>(s.as_ptr()) };
+            let v = unsafe { _mm_load_si128(ptr) };
+            M128Epu8(v)
+        }
+    }
 
     impl std::ops::Add for M128Epu8
     {
