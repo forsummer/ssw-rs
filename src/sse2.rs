@@ -3,10 +3,12 @@ pub mod sse2
 {
     use std::mem::transmute;
     use std::arch::x86_64::__m128i;
+    use std::arch::x86_64::_mm_adds_epu8;
+    use std::arch::x86_64::_mm_subs_epu8;
     use std::arch::x86_64::_mm_set1_epi8;
     use std::arch::x86_64::_mm_xor_si128;
-    use std::arch::x86_64::_mm_subs_epu8;
     use std::arch::x86_64::_mm_cmpeq_epi8;
+    use std::arch::x86_64::_mm_slli_si128;
     use std::arch::x86_64::_mm_movemask_epi8;
 
     #[derive(Clone, Copy)]
@@ -14,6 +16,45 @@ pub mod sse2
 
     // #[derive(Clone, Copy)]
     // struct M128Epu16(__m128i);
+
+    impl std::ops::Add for M128Epu8
+    {
+        type Output = M128Epu8;
+
+        fn add(self, rhs: Self) -> Self::Output
+        {
+            unsafe { M128Epu8(_mm_adds_epu8(self.0, rhs.0)) }
+        }
+    }
+
+    impl std::ops::Sub for M128Epu8
+    {
+        type Output = M128Epu8;
+
+        fn sub(self, rhs: Self) -> Self::Output
+        {
+            unsafe { M128Epu8(_mm_subs_epu8(self.0, rhs.0)) }
+        }
+    }
+
+    impl std::ops::Shl<usize> for M128Epu8
+    {
+        type Output = M128Epu8;
+
+        fn shl(self, rhs: usize) -> Self::Output
+        {
+            let shift_left_byte = |v: &mut __m128i| unsafe { _mm_slli_si128::<1>(*v) };
+
+            let mut v = self.0;
+            let mut step = rhs;
+            while step != 0
+            {
+                shift_left_byte(&mut v);
+                step = step - 1;
+            }
+            M128Epu8(v)
+        }
+    }
 
     impl std::cmp::PartialEq for M128Epu8
     {
