@@ -8,7 +8,7 @@ mod blosum
     /// 
     /// ### Example
     /// ```rust
-    /// use score::blosum62;
+    /// use ssw::score::blosum62;
     /// 
     /// fn main()
     /// {
@@ -52,12 +52,22 @@ mod blosum
             [  0, -1, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -2, -1, -1,  0,  0, -1, -1, -2, -1, -1, -1, -4 ],
             [ -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4,  1 ]];
 
-        let score = move |r1, r2|
+        let score = move |r1: u8, r2: u8|
         {
-            let i = if r1 == b'*' { 26 } else { (r1 - 65) as usize };
-            let j = if r2 == b'*' { 26 } else { (r2 - 65) as usize };
-            let res = if i >= 27 || j >= 27 { None } else { Some(mat[i][j]) };
-            res
+            let i = match r1.to_ascii_uppercase()
+            {
+                b'*' => 26 as usize,
+                r if (65..=90).contains(&r) => (r - 65) as usize,
+                _ => return None,
+            };
+
+            let j = match r2.to_ascii_uppercase()
+            {
+                b'*' => 26 as usize,
+                r if (65..=90).contains(&r) => (r - 65) as usize,
+                _ => return None,
+            };
+            Some(mat[i][j])
         };
         Box::new(score)
     }
@@ -69,7 +79,7 @@ mod blosum
     /// 
     /// ### Example
     /// ```rust
-    /// use score::blosum50;
+    /// use ssw::score::blosum50;
     /// 
     /// fn main()
     /// {
@@ -114,12 +124,22 @@ mod blosum
             [ -1,  2, -3,  1,  5, -4, -2,  0, -3,  0,  1, -3, -1,  0,  0, -1,  4,  0,  0, -1,  0, -3, -2, -1, -2,  5, -5 ],
             [ -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5,  1 ]];
 
-        let score = move |r1, r2|
+        let score = move |r1: u8, r2: u8|
         {
-            let i = if r1 == b'*' { 26 } else { (r1 - 65) as usize };
-            let j = if r2 == b'*' { 26 } else { (r2 - 65) as usize };
-            let res = if i >= 27 || j >= 27 { None } else { Some(mat[i][j]) };
-            res
+            let i = match r1.to_ascii_uppercase()
+            {
+                b'*' => 26,
+                r if (65..=90).contains(&r) => (r - 65) as usize,
+                _ => return None,
+            };
+
+            let j = match r2.to_ascii_uppercase()
+            {
+                b'*' => 26,
+                r if (65..=90).contains(&r) => (r - 65) as usize,
+                _ => return None,
+            };
+            Some(mat[i][j])
         };
         Box::new(score)
     }
@@ -134,7 +154,7 @@ mod pam
     /// 
     /// ### Example
     /// ```rust
-    /// use score::pam120;
+    /// use ssw::score::pam120;
     /// 
     /// fn main()
     /// {
@@ -180,12 +200,22 @@ mod pam
             [ -1, -1, -4, -2, -1, -3, -2, -2, -1, -2, -2, -2, -2, -1, -2, -2, -1, -2, -1, -1, -2, -1, -5, -3, -1, -2, -8 ],
             [ -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8,  1 ]];
 
-        let score = move |r1, r2|
+        let score = move |r1: u8, r2: u8|
         {
-            let i = if r1 == b'*' { 26 } else { (r1 - 65) as usize };
-            let j = if r2 == b'*' { 26 } else { (r2 - 65) as usize };
-            let res = if i >= 27 || j >= 27 { None } else { Some(mat[i][j]) };
-            res
+            let i = match r1.to_ascii_uppercase()
+            {
+                b'*' => 26,
+                r if (65..=90).contains(&r) => (r - 65) as usize,
+                _ => return None,
+            };
+
+            let j = match r2.to_ascii_uppercase()
+            {
+                b'*' => 26,
+                r if (65..=90).contains(&r) => (r - 65) as usize,
+                _ => return None,
+            };
+            Some(mat[i][j])
         };
         Box::new(score)
     }
