@@ -16,8 +16,8 @@ pub mod sse2
     #[derive(Clone, Copy)]
     pub struct M128Epu8(__m128i);
 
-    // #[derive(Clone, Copy)]
-    // struct M128Epu16(__m128i);
+    #[derive(Clone, Copy)]
+    pub struct M128Epu16(__m128i);
 
     impl std::convert::From<&[u8]> for M128Epu8
     {
