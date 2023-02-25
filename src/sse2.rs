@@ -4,12 +4,15 @@ pub mod sse2
     use std::mem::size_of;
     use std::mem::transmute;
     use std::arch::x86_64::__m128i;
-    use std::arch::x86_64::_mm_adds_epu8;
     use std::arch::x86_64::_mm_load_si128;
+    use std::arch::x86_64::_mm_adds_epu8;
     use std::arch::x86_64::_mm_subs_epu8;
+    use std::arch::x86_64::_mm_adds_epu16;
+    use std::arch::x86_64::_mm_subs_epu16;
     use std::arch::x86_64::_mm_set1_epi8;
     use std::arch::x86_64::_mm_xor_si128;
     use std::arch::x86_64::_mm_cmpeq_epi8;
+    use std::arch::x86_64::_mm_cmpeq_epi16;
     use std::arch::x86_64::_mm_slli_si128;
     use std::arch::x86_64::_mm_movemask_epi8;
 
@@ -33,6 +36,20 @@ pub mod sse2
         }
     }
 
+    impl std::convert::From<&[u16]> for M128Epu16
+    {
+        fn from(s: &[u16]) -> Self
+        {
+            if s.len() * size_of::<u16>() != 16
+            {
+                panic!("The capacity of slice should equal to 16 bytes");
+            }
+            let ptr = unsafe { transmute::<*const u16, *const __m128i>(s.as_ptr()) };
+            let v = unsafe { _mm_load_si128(ptr) };
+            M128Epu16(v)
+        }
+    }
+
     impl std::ops::Add for M128Epu8
     {
         type Output = M128Epu8;
@@ -43,6 +60,16 @@ pub mod sse2
         }
     }
 
+    impl std::ops::Add for M128Epu16
+    {
+        type Output = M128Epu16;
+
+        fn add(self, rhs: Self) -> Self::Output
+        {
+            unsafe { M128Epu16(_mm_adds_epu16(self.0, rhs.0)) } 
+        }
+    }
+
     impl std::ops::Sub for M128Epu8
     {
         type Output = M128Epu8;
@@ -50,6 +77,16 @@ pub mod sse2
         fn sub(self, rhs: Self) -> Self::Output
         {
             unsafe { M128Epu8(_mm_subs_epu8(self.0, rhs.0)) }
+        }
+    }
+    
+    impl std::ops::Sub for M128Epu16
+    {
+        type Output = M128Epu16;
+
+        fn sub(self, rhs: Self) -> Self::Output
+        {
+            unsafe { M128Epu16(_mm_subs_epu16(self.0, rhs.0)) }
         }
     }
 
@@ -72,6 +109,25 @@ pub mod sse2
         }
     }
 
+    impl std::ops::Shl<usize> for M128Epu16
+    {
+        type Output = M128Epu16;
+
+        fn shl(self, rhs: usize) -> Self::Output
+        {
+            let shift_left_word = |v: &mut __m128i| unsafe { _mm_slli_si128::<2>(*v) };
+
+            let mut v = self.0;
+            let mut step = rhs;
+            while step != 0
+            {
+                shift_left_word(&mut v);
+                step = step - 1;
+            }
+            M128Epu16(v)
+        }
+    }
+
     impl std::cmp::PartialEq for M128Epu8
     {
         fn eq(&self, other: &Self) -> bool
@@ -80,11 +136,28 @@ pub mod sse2
         }
     }
 
+    impl std::cmp::PartialEq for M128Epu16
+    {
+        fn eq(&self, other: &Self) -> bool
+        {
+            unsafe { _mm_movemask_epi8(_mm_cmpeq_epi16(self.0, other.0)) == 65535 }
+        }
+    }
+
     impl std::fmt::Debug for M128Epu8
     {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
         {
             f.debug_list().entries(self.to_vec().iter().rev()).finish()
+        }
+    }
+
+    impl std::fmt::Debug for M128Epu16
+    {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+        {
+            let v = unsafe { transmute::<M128Epu16, [u16; 8]>(*self) };
+            f.debug_list().entries(v.iter()).finish()
         }
     }
 
