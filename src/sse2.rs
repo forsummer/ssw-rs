@@ -277,7 +277,9 @@ pub mod sse2
 mod test_m128_epu8
 {
     use std::mem::transmute;
+    
     use super::sse2::M128Epu8;
+    use super::sse2::max_epu8;
 
     use std::arch::x86_64::__m128i;
     use std::arch::x86_64::_mm_setzero_si128;
@@ -426,6 +428,26 @@ mod test_m128_epu8
         v.zero_out();
         assert_eq!(v, zero);
     }
+    
+    #[test]
+    fn test_max_epu8()
+    {
+        let arr1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let arr2 = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,32];
+        let max = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,32];
+        let v1 = unsafe { transmute::<[u8; 16], M128Epu8>(arr1) };
+        let v2 = unsafe { transmute::<[u8; 16], M128Epu8>(arr2) };
+        let vmax = unsafe { transmute::<[u8; 16], M128Epu8>(max) };
+        assert_eq!(max_epu8(&v1, &v2), vmax);
+
+        let arr1 = [255, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        let arr2 = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 1, 26, 28, 30,32];
+        let max = [255, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 12, 26, 28, 30,32];
+        let v1 = unsafe { transmute::<[u8; 16], M128Epu8>(arr1) };
+        let v2 = unsafe { transmute::<[u8; 16], M128Epu8>(arr2) };
+        let vmax = unsafe { transmute::<[u8; 16], M128Epu8>(max) };
+        assert_eq!(max_epu8(&v1, &v2), vmax);
+    }
 }
 
 #[cfg(test)]
@@ -434,6 +456,7 @@ mod test_m128_epu16
 {
     use std::mem::transmute;
     use super::sse2::M128Epu16;
+    use super::sse2::max_epu16;
 
     use std::arch::x86_64::__m128i;
     use std::arch::x86_64::_mm_setzero_si128;
@@ -587,5 +610,25 @@ mod test_m128_epu16
         let zero = unsafe { transmute::<__m128i, M128Epu16>(_mm_setzero_si128()) };
         v.zero_out();
         assert_eq!(v, zero);
+    }
+
+    #[test]
+    fn test_max()
+    {
+        let arr1 = [1, 2, 3, 4, 5, 6, 7, 8,];
+        let arr2 = [2, 4, 6, 8, 10, 12, 14, 16];
+        let max = [2, 4, 6, 8, 10, 12, 14, 16];
+        let v1 = unsafe { transmute::<[u16; 8], M128Epu16>(arr1) };
+        let v2 = unsafe { transmute::<[u16; 8], M128Epu16>(arr2) };
+        let vmax = unsafe { transmute::<[u16; 8], M128Epu16>(max) };
+        assert_eq!(max_epu16(&v1, &v2), vmax);
+
+        let arr1 = [255, 2, 3, 4, 5, 6, 7, 8];
+        let arr2 = [2, 4, 6, 8, 10, 12, 14, 0];
+        let max = [255, 4, 6, 8, 10, 12, 14, 8];
+        let v1 = unsafe { transmute::<[u16; 8], M128Epu16>(arr1) };
+        let v2 = unsafe { transmute::<[u16; 8], M128Epu16>(arr2) };
+        let vmax = unsafe { transmute::<[u16; 8], M128Epu16>(max) };
+        assert_eq!(max_epu16(&v1, &v2), vmax);
     }
 }
