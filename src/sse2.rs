@@ -4,16 +4,17 @@ pub mod sse2
     use std::mem::size_of;
     use std::mem::transmute;
     use std::arch::x86_64::__m128i;
-    use std::arch::x86_64::_mm_load_si128;
     use std::arch::x86_64::_mm_adds_epu8;
     use std::arch::x86_64::_mm_subs_epu8;
     use std::arch::x86_64::_mm_adds_epu16;
     use std::arch::x86_64::_mm_subs_epu16;
     use std::arch::x86_64::_mm_set1_epi8;
+    use std::arch::x86_64::_mm_set1_epi16;
     use std::arch::x86_64::_mm_xor_si128;
     use std::arch::x86_64::_mm_cmpeq_epi8;
     use std::arch::x86_64::_mm_cmpeq_epi16;
     use std::arch::x86_64::_mm_slli_si128;
+    use std::arch::x86_64::_mm_load_si128;
     use std::arch::x86_64::_mm_movemask_epi8;
 
     #[derive(Clone, Copy)]
@@ -212,6 +213,51 @@ pub mod sse2
             *self = unsafe { M128Epu8(_mm_xor_si128(self.0, self.0)) };
         }
     }
+
+    impl M128Epu16
+    {
+        pub fn fill(item: u16) -> M128Epu16
+        {
+            unsafe { transmute::<[u16; 8], M128Epu16>([item; 8]) }
+        }
+
+        pub fn anyelement_gt(&self, other: &M128Epu16) -> bool
+        {
+            unsafe
+            {
+                let tmp = _mm_subs_epu16(self.0, other.0);
+                let mask = _mm_cmpeq_epi16(tmp, _mm_set1_epi16(0));
+                _mm_movemask_epi8(mask) != 65535
+            }
+        }
+
+        pub fn to_vec(self) -> Vec<u16>
+        {
+            unsafe { transmute::<M128Epu16, [u16; 8]>(self).to_vec() }
+        }
+
+        pub fn get_max(&self) -> u16
+        {
+            *self.to_vec().iter().max().unwrap()
+        }
+
+        pub fn position(&self, other: u16) -> usize
+        {
+            self.to_vec().iter().rposition(|item| *item == other).unwrap()
+        }
+
+        pub fn contains(&self, other: u16) -> bool
+        {
+            let item = unsafe { transmute::<[u16; 8], __m128i>([other; 8]) };
+            let mask = unsafe { _mm_movemask_epi8(_mm_cmpeq_epi16(self.0, item)) };
+            mask != 0
+        }
+
+        pub fn zero_out(&mut self)
+        {
+            *self = unsafe { M128Epu16(_mm_xor_si128(self.0, self.0)) }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -343,10 +389,10 @@ mod test_m128_epu8
     #[test]
     fn test_position()
     {
-        let v = unsafe { transmute::<[u8; 16], M128Epu8>([1, 2, 3, 4 , 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) };
+        let v = unsafe { transmute::<[u8; 16], M128Epu8>([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) };
         assert_eq!(v.position(16), 15);
 
-        let v = unsafe { transmute::<[u8; 16], M128Epu8>([1, 2, 3, 4 , 5, 6, 7, 8, 9, 255, 11, 12, 13, 14, 15, 16]) };
+        let v = unsafe { transmute::<[u8; 16], M128Epu8>([1, 2, 3, 4, 5, 6, 7, 8, 9, 255, 11, 12, 13, 14, 15, 16]) };
         assert_eq!(v.position(255), 9);
     }
 
