@@ -4,6 +4,8 @@ pub mod sse2
     use std::mem::size_of;
     use std::mem::transmute;
     use std::arch::x86_64::__m128i;
+    use std::arch::x86_64::_mm_max_epu8;
+    use std::arch::x86_64::_mm_max_epu16;
     use std::arch::x86_64::_mm_adds_epu8;
     use std::arch::x86_64::_mm_subs_epu8;
     use std::arch::x86_64::_mm_adds_epu16;
@@ -257,6 +259,16 @@ pub mod sse2
         {
             *self = unsafe { M128Epu16(_mm_xor_si128(self.0, self.0)) }
         }
+    }
+
+    pub fn max_epu8(v1: &M128Epu8, v2: &M128Epu8) -> M128Epu8
+    {
+        unsafe { M128Epu8(_mm_max_epu8(v1.0, v2.0)) }
+    }
+
+    pub fn max_epu16(v1: &M128Epu16, v2: &M128Epu16) -> M128Epu16
+    {
+        unsafe { M128Epu16(_mm_max_epu16(v1.0, v2.0)) }
     }
 }
 
