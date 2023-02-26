@@ -423,6 +423,9 @@ mod test_m128_epu16
     use std::mem::transmute;
     use super::sse2::M128Epu16;
 
+    use std::arch::x86_64::__m128i;
+    use std::arch::x86_64::_mm_setzero_si128;
+
     #[test]
     fn test_from_u16_slice()
     {
@@ -497,5 +500,80 @@ mod test_m128_epu16
         let v1 = unsafe { transmute::<[u16; 8], M128Epu16>(arr1) };
         let v2 = unsafe { transmute::<[u16; 8], M128Epu16>(arr2) };
         assert!(v1 == v2);
+    }
+
+    #[test]
+    fn test_fill()
+    {
+        let v1 = M128Epu16::fill(0);
+        let v2 = unsafe { transmute::<[u16; 8], M128Epu16>([0; 8]) };
+        assert_eq!(v1, v2);
+
+        let v1 = M128Epu16::fill(1);
+        let v2 = unsafe { transmute::<[u16; 8], M128Epu16>([1; 8]) };
+        assert_eq!(v1, v2);
+    }
+
+    #[test]
+    fn test_anyelement_gt()
+    {
+        let a1 = [1, 1, 1, 1, 1, 1, 1, 2];
+        let a2 = [1, 1, 1, 1, 1, 1, 1, 1];
+        let v1 = unsafe { transmute::<[u16; 8], M128Epu16>(a1) };
+        let v2 = unsafe { transmute::<[u16; 8], M128Epu16>(a2) };
+        assert!(v1.anyelement_gt(&v2));
+
+        let a1 = [0, 1, 1, 1, 1, 1, 1, 1];
+        let a2 = [1, 1, 1, 1, 1, 1, 1, 1];
+        let v1 = unsafe { transmute::<[u16; 8], M128Epu16>(a1) };
+        let v2 = unsafe { transmute::<[u16; 8], M128Epu16>(a2) };
+        assert!(!v1.anyelement_gt(&v2));
+    }
+
+    #[test]
+    fn test_to_vec()
+    {
+        let v1 = vec![1, 2, 3, 4 , 5, 6, 7, 8];
+        let v2 = unsafe { transmute::<[u16; 8], M128Epu16>([1, 2, 3, 4 , 5, 6, 7, 8]) };
+        assert_eq!(v1, v2.to_vec());
+    }
+
+    #[test]
+    fn test_get_max()
+    {
+        let v = unsafe { transmute::<[u16; 8], M128Epu16>([9, 10, 11, 12, 13, 14, 15, 16]) };
+        assert_eq!(v.get_max(), 16);
+
+        let v = unsafe { transmute::<[u16; 8], M128Epu16>([255, 2, 3, 4 , 5, 6, 7, 8]) };
+        assert_eq!(v.get_max(), 255);
+    }
+
+    #[test]
+    fn test_position()
+    {
+        let v = unsafe { transmute::<[u16; 8], M128Epu16>([1, 2, 3, 4, 5, 6, 7, 8]) };
+        assert_eq!(v.position(8), 7);
+
+        let v = unsafe { transmute::<[u16; 8], M128Epu16>([9, 255, 11, 12, 13, 14, 15, 16]) };
+        assert_eq!(v.position(255), 1);
+    }
+
+    #[test]
+    fn test_contains()
+    {
+        let v = unsafe { transmute::<[u16; 8], M128Epu16>([1, 2, 3, 4 , 5, 6, 7, 8]) };
+        assert!(v.contains(1));
+        assert!(!v.contains(16));
+        assert!(!v.contains(20));
+        assert!(!v.contains(255));
+    }
+
+    #[test]
+    fn test_zero_out()
+    {
+        let mut v = unsafe { transmute::<[u16; 8], M128Epu16>([1, 2, 3, 4 , 5, 6, 7, 8]) };
+        let zero = unsafe { transmute::<__m128i, M128Epu16>(_mm_setzero_si128()) };
+        v.zero_out();
+        assert_eq!(v, zero);
     }
 }
