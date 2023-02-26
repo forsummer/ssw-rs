@@ -115,11 +115,11 @@ pub mod sse2
 
         fn shl(self, rhs: usize) -> Self::Output
         {
-            let shift_left_word = |v: &mut __m128i| unsafe { _mm_slli_si128::<2>(*v) };
+            let shift_left_word = |v: &mut __m128i| unsafe { *v = _mm_slli_si128::<2>(*v) };
 
             let mut v = self.0;
             let mut step = rhs;
-            while step != 0
+            while step > 0
             {
                 shift_left_word(&mut v);
                 step = step - 1;
@@ -425,6 +425,18 @@ mod test_m128_epu16
         let v2 = unsafe { transmute::<[u16; 8], M128Epu16>(arr2) };
         let sub = unsafe { transmute::<[u16; 8], M128Epu16>(sub) };
         assert_eq!(v1 - v2, sub);
+    }
+
+    #[test]
+    fn test_shl()
+    {
+        let arr1 = [1, 2, 3, 4, 5, 6, 7, 8];
+        let arr2 = [0, 1, 2, 3, 4, 5, 6, 7];
+
+        let v1 = unsafe { transmute::<[u16; 8], M128Epu16>(arr1) };
+        let v2 = unsafe { transmute::<[u16; 8], M128Epu16>(arr2) };
+
+        assert_eq!(v1 << 1, v2);
     }
 
     #[test]
