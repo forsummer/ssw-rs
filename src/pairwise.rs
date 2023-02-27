@@ -1229,6 +1229,144 @@ mod sw_avx2
     }
 }
 
+#[cfg(all(target_feature = "sse2"))]
+mod sw_sse2
+{
+    use std::mem::swap;
+    use crate::sse2::sse2::M128Epu8;
+    use crate::sse2::sse2::M128Epu16;
+
+    use super::AlignErr;
+
+    enum Profile
+    {
+        Byte { bias: u8,  profile: Vec<Vec<M128Epu8>>  },
+        Word { bias: u16, profile: Vec<Vec<M128Epu16>> },
+    }
+
+    enum ProfileType { Epu8, Epu16 }
+
+    fn query_profile<S>(d: &[u8], q: &[u8], p: ProfileType, f: S) -> Result<Profile, AlignErr>
+    where
+        S: Fn(u8, u8) -> Option<i8>
+    {
+        if !(d.is_ascii() && q.is_ascii())
+        {
+            Err( AlignErr::IllegalChar
+                {
+                    file: file!().to_string(),
+                    line: line!() as usize,
+                    msg: "Sequence d or q contains non-ascii character".to_string(),
+                } )?
+        }
+
+        let mut bitmap = vec![0; 129];
+        for r in [d, q].concat().iter()
+        {
+            *get_mut_unchecked!(bitmap, *r as usize) = 1;
+        }
+
+        let mut alphabet = Vec::with_capacity(27);
+        bitmap.iter().enumerate().for_each(|(i, sign)| if *sign == 1 { alphabet.push(i as u8) });
+
+        let mut bias = 0;
+        for nn1 in alphabet.iter()
+        {
+            for nn2 in alphabet.iter()
+            {
+                let pair_score = match f(*nn1, *nn2)
+                {
+                    None => Err( AlignErr::GetScoreErr
+                        {
+                            file: file!().to_string(),
+                            line: line!() as usize,
+                            msg: "Can not get pair score with this scoring function".to_string(),
+                        } )?,
+                    Some(score) => score,
+                };
+                bias = min!(bias, pair_score);
+            }
+        }
+        bias = bias.abs();
+
+        let pair = |nn1, nn2|
+        {
+            match (nn1, nn2)
+            {
+                (b'*', _) => 0,
+                (_, b'*') => 0,
+                (a, b) => f(a, b).unwrap() + bias,
+            }
+        };
+
+        let seg_len = match p
+        {
+            ProfileType::Epu8  => 16,
+            ProfileType::Epu16 => 8,
+        };
+
+        let seg_num = (q.len() + seg_len - 1) / seg_len;
+
+        let mut seg_set = vec![Vec::new(); seg_num];
+
+        for (i, s) in seg_set.iter_mut().enumerate().take(seg_num)
+        {
+            let mut seg = Vec::with_capacity(seg_len);
+            for j in 0..seg_len
+            {
+                let residue = q.get(j * seg_num + i)
+                    .map_or(b'*', |r| *r);
+                seg.push(residue);
+            }
+            swap::<Vec<u8>>(s, &mut seg);
+        }
+
+        let profile_len = alphabet.iter().max().map(|item| *item as usize).unwrap() - 64;
+
+        if seg_len == 8
+        {
+            let mut profile = vec![Vec::new(); profile_len];
+            for residue in alphabet.iter().copied()
+            {
+                let mut score_set = Vec::with_capacity(seg_num);
+                for seg in seg_set.iter()
+                {
+                    let score = seg.iter()
+                        .copied()
+                        .zip(vec![residue; seg_len])
+                        .map(|(r1, r2)| pair(r1, r2).unsigned_abs() as u16)
+                        .collect::<Vec<u16>>();
+                    score_set.push(M128Epu16::from(&score[..]));
+                }
+                swap::<Vec<M128Epu16>>(get_mut_unchecked!(profile, (residue - 65) as usize), &mut score_set);
+            }
+            return Ok(Profile::Word { bias: bias.unsigned_abs() as u16, profile })
+        }
+
+        if seg_len == 16
+        {
+            let mut profile = vec![Vec::new(); profile_len];
+            for residue in alphabet.iter().copied()
+            {
+                let mut score_set = Vec::with_capacity(seg_num);
+                for seg in seg_set.iter()
+                {
+                    let score = seg.iter()
+                        .copied()
+                        .zip(vec![residue; seg_len])
+                        .map(|(r1, r2)| pair(r1, r2).unsigned_abs())
+                        .collect::<Vec<u8>>();
+                    score_set.push(M128Epu8::from(&score[..]));
+                }
+                swap::<Vec<M128Epu8>>(get_mut_unchecked!(profile, (residue - 65) as usize), &mut score_set);
+            }
+            return Ok(Profile::Byte { bias: bias.unsigned_abs(), profile })
+        }
+
+        unreachable!()
+    }
+}
+
 mod sw_scalar
 {
     use std::mem::swap;
