@@ -1236,6 +1236,8 @@ mod sw_sse2
 
     use crate::pairwise::AlignErr;
     use crate::pairwise::AlignEnd;
+    use crate::pairwise::AlignFlag;
+    use crate::pairwise::AlignResult;
     use crate::sse2::sse2::M128Epu8;
     use crate::sse2::sse2::M128Epu16;
     use crate::sse2::sse2::max_epu8;
@@ -2003,6 +2005,147 @@ mod sw_sse2
         let opt = *max_col_score.iter().max().unwrap();
         Ok(opt as u32)
     }
+
+    pub fn smith_waterman_sse2<S>(d: &[u8], q:&[u8], go: u8, ge: u8, flag: &AlignFlag, f: S) -> Result<AlignResult, AlignErr>
+    where
+        S: Fn(u8, u8) -> Option<i8>
+    {
+        let (d_seq, q_seq) = match (d.is_ascii(), q.is_ascii())
+        {
+            (true, true)   => (d.to_ascii_uppercase(), q.to_ascii_uppercase()),
+            (true, false)  => Err(AlignErr::IllegalChar
+                {
+                    file: file!().to_string(),
+                    line: line!() as usize,
+                    msg: "Non-ascii character contain in database sequence".to_string(),
+                })?,
+            (false, true)  => Err(AlignErr::IllegalChar
+                {
+                    file: file!().to_string(),
+                    line: line!() as usize,
+                    msg: "Non-ascii character contain in query sequence".to_string(),
+                })?,
+            (false, false) => Err(AlignErr::IllegalChar
+                {
+                    file: file!().to_string(),
+                    line: line!() as usize,
+                    msg: "Non-ascii character contain in database/query sequence".to_string(),
+                })?,
+        };
+
+        if let AlignFlag::OptOnly = flag
+        {
+            let profile_byte = query_profile(&d_seq, &q_seq, ProfileType::Epu8, &f)?;
+
+            let res = match ssw_byte_opt_only(&d_seq, &q_seq, go, ge, &profile_byte)
+            {
+                Ok(opt) => opt,
+                Err(AlignErr::OverFlow { .. }) => 
+                {
+                    let profile_word = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f)?;
+                    ssw_word_opt_only(&d_seq, &q_seq, go, ge, &profile_word)?
+                },
+                _ => unreachable!(),
+            };
+
+            return Ok( AlignResult
+                {
+                    d_start: None,
+                    q_start: None,
+                    d_end: None,
+                    q_end: None,
+                    d_best: None,
+                    q_best: None,
+                    opt: res,
+                    flag: AlignFlag::OptOnly,
+                })
+        }
+
+        let profile_byte = query_profile(&d_seq, &q_seq, ProfileType::Epu8, &f)?;
+        let res = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile_byte)
+        {
+            Ok(res) => res,
+            Err(AlignErr::OverFlow {..}) => 
+            {
+                let profile_u16 = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f)?;
+                ssw_word(&d_seq, &q_seq, go, ge, 0, &profile_u16)?
+            },
+            _ => unreachable!(),
+        };
+
+        if let AlignFlag::End = flag
+        {
+            let (opt, d_end, q_end) = match res
+            {
+                AlignEnd::U8  { var, pos } => (var as u32, pos.0+1, pos.1+1),
+                AlignEnd::U16 { var, pos } => (var as u32, pos.0+1, pos.1+1),
+                _ => unreachable!(),
+            };
+
+            return Ok( AlignResult
+                {
+                    d_start: None,
+                    q_start: None,
+                    d_end: Some(d_end),
+                    q_end: Some(q_end),
+                    d_best: None,
+                    q_best: None,
+                    opt,
+                    flag: AlignFlag::End,
+                } )
+        }
+        
+        if let AlignFlag::Path = flag
+        {
+            let (opt, d_end, q_end) = match res
+            {
+                AlignEnd::U8  { var, pos } => (var as u32, pos.0+1, pos.1+1),
+                AlignEnd::U16 { var, pos } => (var as u32, pos.0+1, pos.1+1),
+                _ => unreachable!(),
+            };
+
+            let mut d_splited_rev = d_seq[0..d_end].to_vec();
+            let mut q_splited_rev = q_seq[0..q_end].to_vec();
+            d_splited_rev.reverse();
+            q_splited_rev.reverse();
+
+            let profile_rev = match res
+            {
+                AlignEnd::U8  { .. } => query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu8, &f)?,
+                AlignEnd::U16 { .. } => query_profile(&d_splited_rev, &q_splited_rev, ProfileType::Epu16, &f)?,
+                _ => unreachable!(),
+            };
+
+            let res_rev = match profile_rev
+            {
+                Profile::Byte { .. } => ssw_byte(&d_splited_rev, &q_splited_rev, go, ge, opt as u8, &profile_rev)?,
+                Profile::Word { .. } => ssw_word(&d_splited_rev, &q_splited_rev, go, ge, opt as u16, &profile_rev)?,
+            };
+
+            let (d_start, q_start) = match res_rev
+            {
+                AlignEnd::U8  { pos, .. } => (d_end - pos.0, q_end - pos.1),
+                AlignEnd::U16 { pos, .. } => (d_end - pos.0, q_end - pos.1),
+                _ => unreachable!(),
+            };
+
+            let (d_best, q_best) = banded_sw(&d_seq[d_start-1..d_end], &q_seq[q_start-1..q_end], go, ge, &f);
+            
+            return Ok( AlignResult
+                {
+                    d_start: Some(d_start),
+                    q_start: Some(q_start),
+                    d_end: Some(d_end),
+                    q_end: Some(q_end),
+                    opt,
+                    d_best: Some(d_best),
+                    q_best: Some(q_best),
+                    flag: AlignFlag::Path,
+                } )
+        }
+
+        unreachable!()
+    }
 }
 
 mod sw_scalar
@@ -2399,5 +2542,8 @@ mod sw_scalar
 
 #[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 pub use self::sw_avx2::smith_waterman_avx2;
+
+#[cfg(all(target_feature = "sse2"))]
+pub use self::sw_sse2::smith_waterman_sse2;
 
 pub use self::sw_scalar::smith_waterman_scalar;
