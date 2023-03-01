@@ -1811,6 +1811,102 @@ mod sw_sse2
         }
         Ok(AlignEnd::U16 { var: opt, pos })
     }
+
+    fn ssw_byte_opt_only(d: &[u8], q: &[u8], go: u8, ge: u8, profile: &Profile) -> Result<u32, AlignErr>
+    {
+        let go = M128Epu8::fill(go);
+        let ge = M128Epu8::fill(ge);
+
+        let (bias, profile) = match profile
+        {
+            Profile::Byte { bias, profile } => (*bias, profile),
+            _ => panic!("Unacceptable profile"),
+        };
+
+        let overflow_threshold = u8::MAX.saturating_sub(bias);
+
+        let seg_num = (q.len() + 15) / 16;
+
+        let bias = M128Epu8::fill(bias);
+        let mut f = M128Epu8::fill(0);
+        let mut e_store = vec![M128Epu8::fill(0); seg_num];
+        let mut h_store = vec![M128Epu8::fill(0); seg_num];
+        let mut h_buffer = vec![M128Epu8::fill(0); seg_num];
+        let mut max_col_score = vec![0; d.len()];
+
+        let mut max = M128Epu8::fill(0);
+
+        for (i, r) in d.iter().copied().enumerate()
+        {
+            f.zero_out();
+
+            let mut prev_h = *h_store.last().unwrap();
+            prev_h = prev_h << 1;
+
+            let profile_col = get_unchecked!(profile, (r - 65) as usize);
+            for j in 0..seg_num
+            {
+                let score = *get_unchecked!(profile_col, j);
+                let prev_e = *get_unchecked!(e_store, j);
+
+                let h = max_epu8(max_epu8(prev_h + score - bias, prev_e), f);
+
+                let h_sub_go = h - go;
+
+                let e = max_epu8(h_sub_go, prev_e - ge);
+                f = max_epu8(h_sub_go, f - ge);
+
+                *get_mut_unchecked!(e_store, j) = e;
+                *get_mut_unchecked!(h_buffer, j) = h;
+
+                prev_h = *get_unchecked!(h_store, j);
+            }
+
+            f = f << 1;
+
+            let mut j = 0;
+            while f.anyelement_gt(&(*get_unchecked!(h_buffer, j) - go))
+            {
+                let h_buffer_uncorrect = *get_unchecked!(h_buffer, j);
+                let h_buffer_mut_ref = get_mut_unchecked!(h_buffer, j);
+                *h_buffer_mut_ref = max_epu8(f, h_buffer_uncorrect);
+
+                let h_buffer_correct = *get_unchecked!(h_buffer, j);
+                let e_store_uncorrect = *get_unchecked!(e_store, j);
+                let e_store_mut_ref = get_mut_unchecked!(e_store, j);
+                *e_store_mut_ref = max_epu8(e_store_uncorrect, h_buffer_correct - go);
+
+                f = f - ge;
+
+                j = j + 1;
+                if j >= seg_num
+                {
+                    f = f << 1;
+                    j = 0;
+                }
+            }
+
+            h_buffer.iter().for_each(|h| max = max_epu8(max, *h));
+            let tmp = max.get_max();
+
+            if tmp >= overflow_threshold
+            {
+                Err(AlignErr::OverFlow
+                {
+                    file: file!().to_string(),
+                    line: line!() as usize,
+                    msg: "Score out of u8 range".to_string(),
+                })?
+            }
+
+            *get_mut_unchecked!(max_col_score, i) = tmp;
+
+            swap::<Vec<M128Epu8>>(&mut h_store, &mut h_buffer);
+        }
+
+        let opt = *max_col_score.iter().max().unwrap();
+        Ok(opt as u32)
+    }
 }
 
 mod sw_scalar
