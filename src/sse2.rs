@@ -261,12 +261,12 @@ pub mod sse2
         }
     }
 
-    pub fn max_epu8(v1: &M128Epu8, v2: &M128Epu8) -> M128Epu8
+    pub fn max_epu8(v1: M128Epu8, v2: M128Epu8) -> M128Epu8
     {
         unsafe { M128Epu8(_mm_max_epu8(v1.0, v2.0)) }
     }
 
-    pub fn max_epu16(v1: &M128Epu16, v2: &M128Epu16) -> M128Epu16
+    pub fn max_epu16(v1: M128Epu16, v2: M128Epu16) -> M128Epu16
     {
         unsafe { M128Epu16(_mm_max_epu16(v1.0, v2.0)) }
     }
@@ -438,7 +438,7 @@ mod test_m128_epu8
         let v1 = unsafe { transmute::<[u8; 16], M128Epu8>(arr1) };
         let v2 = unsafe { transmute::<[u8; 16], M128Epu8>(arr2) };
         let vmax = unsafe { transmute::<[u8; 16], M128Epu8>(max) };
-        assert_eq!(max_epu8(&v1, &v2), vmax);
+        assert_eq!(max_epu8(v1, v2), vmax);
 
         let arr1 = [255, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         let arr2 = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 1, 26, 28, 30,32];
@@ -446,7 +446,7 @@ mod test_m128_epu8
         let v1 = unsafe { transmute::<[u8; 16], M128Epu8>(arr1) };
         let v2 = unsafe { transmute::<[u8; 16], M128Epu8>(arr2) };
         let vmax = unsafe { transmute::<[u8; 16], M128Epu8>(max) };
-        assert_eq!(max_epu8(&v1, &v2), vmax);
+        assert_eq!(max_epu8(v1, v2), vmax);
     }
 }
 
@@ -621,7 +621,7 @@ mod test_m128_epu16
         let v1 = unsafe { transmute::<[u16; 8], M128Epu16>(arr1) };
         let v2 = unsafe { transmute::<[u16; 8], M128Epu16>(arr2) };
         let vmax = unsafe { transmute::<[u16; 8], M128Epu16>(max) };
-        assert_eq!(max_epu16(&v1, &v2), vmax);
+        assert_eq!(max_epu16(v1, v2), vmax);
 
         let arr1 = [255, 2, 3, 4, 5, 6, 7, 8];
         let arr2 = [2, 4, 6, 8, 10, 12, 14, 0];
@@ -629,6 +629,6 @@ mod test_m128_epu16
         let v1 = unsafe { transmute::<[u16; 8], M128Epu16>(arr1) };
         let v2 = unsafe { transmute::<[u16; 8], M128Epu16>(arr2) };
         let vmax = unsafe { transmute::<[u16; 8], M128Epu16>(max) };
-        assert_eq!(max_epu16(&v1, &v2), vmax);
+        assert_eq!(max_epu16(v1, v2), vmax);
     }
 }
