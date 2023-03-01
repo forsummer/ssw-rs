@@ -1239,7 +1239,7 @@ mod sw_sse2
     use crate::sse2::sse2::M128Epu8;
     use crate::sse2::sse2::M128Epu16;
     use crate::sse2::sse2::max_epu8;
-    // use crate::sse2::sse2::max_epu16;
+    use crate::sse2::sse2::max_epu16;
 
     enum Profile
     {
@@ -1546,6 +1546,182 @@ mod sw_sse2
         Ok(AlignEnd::U8 { var: opt, pos })
     }
 
+    fn ssw_word(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd, AlignErr>
+    {
+        let go = M128Epu16::fill(go as u16);
+        let ge = M128Epu16::fill(ge as u16);
+
+        let (bias, profile) = match profile
+        {
+            Profile::Word { bias, profile } => (*bias, profile),
+            _ => panic!("Unacceptable profile"),
+        };
+
+        let overflow_threshold = u16::MAX.saturating_sub(bias);
+
+        let seg_num = (q.len() + 7) / 8;
+
+        let bias = M128Epu16::fill(bias);
+        let mut f = M128Epu16::fill(0);
+        let mut e_store = vec![M128Epu16::fill(0); seg_num];
+        let mut h_store = vec![M128Epu16::fill(0); seg_num];
+        let mut h_buffer = vec![M128Epu16::fill(0); seg_num];
+        let mut h_buffer_max = vec![M128Epu16::fill(0); seg_num];
+
+        let mut opt = 0;
+        let mut pos = (0, 0);
+        let mut max = M128Epu16::fill(0);
+
+        if terminater == 0
+        {
+            for (i, r) in d.iter().copied().enumerate()
+            {
+                f.zero_out();
+
+                let mut prev_h = *h_store.last().unwrap();
+                prev_h = prev_h << 1;
+
+                let profile_col = get_unchecked!(profile, (r - 65) as usize);
+                for j in 0..seg_num
+                {
+                    let score = *get_unchecked!(profile_col, j);
+                    let prev_e = *get_unchecked!(e_store, j);
+
+                    let h = max_epu16(max_epu16(prev_h + score - bias, prev_e), f);
+
+                    let h_sub_go = h - go;
+
+                    let e = max_epu16(h_sub_go, prev_e - ge);
+                    f = max_epu16(h_sub_go, f - ge);
+
+                    *get_mut_unchecked!(e_store, j) = e;
+                    *get_mut_unchecked!(h_buffer, j) = h;
+
+                    prev_h = *get_unchecked!(h_store, j);
+                }
+
+                f = f << 1;
+
+                let mut j = 0;
+                while f.anyelement_gt(&(*get_unchecked!(h_buffer, j) - go))
+                {
+                    let h_buffer_uncorrect = *get_unchecked!(h_buffer, j);
+                    let h_buffer_mut_ref = get_mut_unchecked!(h_buffer, j);
+                    *h_buffer_mut_ref = max_epu16(f, h_buffer_uncorrect);
+
+                    let h_buffer_correct = *get_unchecked!(h_buffer, j);
+                    let e_store_uncorrect = *get_unchecked!(e_store, j);
+                    let e_store_mut_ref = get_mut_unchecked!(e_store, j);
+                    *e_store_mut_ref = max_epu16(e_store_uncorrect, h_buffer_correct - go);
+
+                    f = f - ge;
+
+                    j = j + 1;
+                    if j >= seg_num
+                    {
+                        f = f << 1;
+                        j = 0;
+                    }
+                }
+
+                h_buffer.iter().for_each(|h| max = max_epu16(max, *h));
+                let tmp = max.get_max();
+
+                if tmp >= overflow_threshold
+                {
+                    Err(AlignErr::OverFlow
+                    {
+                        file: file!().to_string(),
+                        line: line!() as usize,
+                        msg: "Score out of u8 range".to_string(),
+                    })?
+                }
+
+                if tmp > opt
+                {
+                    opt = tmp;
+                    pos.0 = i;
+                    h_buffer_max = h_buffer.clone();
+                }
+                swap::<Vec<M128Epu16>>(&mut h_store, &mut h_buffer);
+            }
+
+            'pos: for (j, h) in h_buffer_max.iter().enumerate()
+            {
+                if h.contains(opt)
+                {
+                    pos.1 = h.position(opt) * seg_num + j;
+                    break 'pos;
+                }
+            }
+        }
+        else
+        {
+            'outer: for (i, r) in d.iter().copied().enumerate()
+            {
+                f.zero_out();
+
+                let mut prev_h = *h_store.last().unwrap();
+                prev_h = prev_h << 1;
+
+                let profile_col = get_unchecked!(profile, (r - 65) as usize);
+                for j in 0..seg_num
+                {
+                    let score = *get_unchecked!(profile_col, j);
+                    let prev_e = *get_unchecked!(e_store, j);
+
+                    let h = max_epu16(max_epu16(prev_h + score - bias, prev_e), f);
+
+                    let h_sub_go = h - go;
+
+                    let e = max_epu16(h_sub_go, prev_e - ge);
+                    f = max_epu16(h_sub_go, f - ge);
+
+                    *get_mut_unchecked!(e_store, j) = e;
+                    *get_mut_unchecked!(h_buffer, j) = h;
+
+                    prev_h = *get_unchecked!(h_store, j);
+                }
+
+                f = f << 1;
+
+                let mut j = 0;
+                while f.anyelement_gt(&(*get_unchecked!(h_buffer, j) - go))
+                {
+                    let h_buffer_uncorrect = *get_unchecked!(h_buffer, j);
+                    let h_buffer_mut_ref = get_mut_unchecked!(h_buffer, j);
+                    *h_buffer_mut_ref = max_epu16(f, h_buffer_uncorrect);
+
+                    let h_buffer_correct = *get_unchecked!(h_buffer, j);
+                    let e_store_uncorrect = *get_unchecked!(e_store, j);
+                    let e_store_mut_ref = get_mut_unchecked!(e_store, j);
+                    *e_store_mut_ref = max_epu16(e_store_uncorrect, h_buffer_correct - go);
+
+                    f = f - ge;
+
+                    j = j + 1;
+                    if j >= seg_num
+                    {
+                        f = f << 1;
+                        j = 0;
+                    }
+                }
+
+                for (j, h) in h_buffer.iter().enumerate()
+                {
+                    if h.contains(terminater)
+                    {
+                        opt = terminater;
+                        pos.0 = i;
+                        pos.1 = h.position(opt) * seg_num + j;
+                        break 'outer;
+                    }
+                }
+                swap::<Vec<M128Epu16>>(&mut h_store, &mut h_buffer);
+            }
+        }
+        Ok(AlignEnd::U16 { var: opt, pos })
+    }
 }
 
 mod sw_scalar
