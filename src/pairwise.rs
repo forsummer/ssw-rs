@@ -1369,6 +1369,95 @@ mod sw_sse2
         unreachable!()
     }
 
+    fn banded_sw<S>(d: &[u8], q: &[u8], go: u8, ge: u8, score: &S) -> (Vec<u8>, Vec<u8>)
+    where
+        S: Fn(u8, u8) -> Option<i8>
+    {
+        let d_len = d.len();
+        let q_len = q.len();
+
+        let go = go as u16;
+        let ge = ge as u16;
+
+        let mut left_f: u16 = 0;
+        let mut left_h: u16 = 0;
+        let mut prev_e: Vec<u16> = vec![0; q_len+1];
+        let mut prev_h: Vec<u16> = vec![0; q_len+1];
+        let mut current_h = vec![0; q_len+1];
+
+        let mut direction = vec![vec![0_u8; q_len+1]; d_len+1];
+        for i in 1..d_len+1
+        {
+            for j in 1..q_len+1
+            {
+                assert!(d_len+1 >= i);
+                assert!(q_len+1 >= j);
+
+                let e = max!(prev_h[j].saturating_sub(go), prev_e[j].saturating_sub(ge));
+                let f = max!(left_h.saturating_sub(go), left_f.saturating_sub(ge));
+
+                let pair = score(d[i-1], q[j-1]).unwrap();
+                let ext = match pair > 0
+                {
+                    true  => prev_h[j-1].saturating_add(pair.unsigned_abs() as u16),
+                    false => prev_h[j-1].saturating_sub(pair.unsigned_abs() as u16),
+                };
+                let h = max!(ext, e, f);
+
+                direction[i][j] = match h
+                {
+                    var1 if var1 == e   => 1,
+                    var2 if var2 == f   => 2,
+                    var3 if var3 == ext => 3,
+                    _                        => 0,
+                };
+
+                left_f = f;
+                left_h = h;
+                prev_e[j] = e;
+                current_h[j] = h;
+            }
+
+            left_f = 0;
+            left_h = 0;
+            swap::<Vec<u16>>(&mut prev_h, &mut current_h);
+        }
+
+        let mut d_best = Vec::new();
+        let mut q_best = Vec::new();
+
+        let mut i = d_len;
+        let mut j = q_len;
+        while direction[i][j] != 0
+        {
+            if direction[i][j] == 1
+            {
+                d_best.insert(0, d[i-1]);
+                q_best.insert(0, b'-');
+                i = i - 1;
+                continue;
+            }
+
+            if direction[i][j] == 2
+            {
+                d_best.insert(0, b'-');
+                q_best.insert(0, q[j-1]);
+                j = j - 1;
+                continue;
+            }
+
+            if direction[i][j] == 3
+            {
+                d_best.insert(0, d[i-1]);
+                q_best.insert(0, q[j-1]);
+                i = i - 1;
+                j = j - 1;
+                continue;
+            }
+        }
+        (d_best, q_best)
+    }
+
     fn ssw_byte(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u8, profile: &Profile) -> Result<AlignEnd, AlignErr>
     {
         let go = M128Epu8::fill(go);
