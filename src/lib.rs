@@ -93,7 +93,7 @@
 #[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 mod avx;
 
-#[cfg(all(target_feature = "avx", target_feature = "avx2"))]
+#[cfg(all(target_feature = "sse2"))]
 mod sse2;
 
 /// Provide wrapping of scoring matrix, such as **blosum50**, **blosum62** and **pam120**.
