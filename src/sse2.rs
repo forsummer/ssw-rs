@@ -5,7 +5,7 @@ pub mod sse2
     use std::mem::transmute;
     use std::arch::x86_64::__m128i;
     use std::arch::x86_64::_mm_max_epu8;
-    use std::arch::x86_64::_mm_max_epu16;
+    use std::arch::x86_64::_mm_max_epi16;
     use std::arch::x86_64::_mm_adds_epu8;
     use std::arch::x86_64::_mm_subs_epu8;
     use std::arch::x86_64::_mm_adds_epu16;
@@ -268,7 +268,14 @@ pub mod sse2
 
     pub fn max_epu16(v1: M128Epu16, v2: M128Epu16) -> M128Epu16
     {
-        unsafe { M128Epu16(_mm_max_epu16(v1.0, v2.0)) }
+        unsafe
+        {
+            let bias = transmute::<[u16; 8], __m128i>([0x8000; 8]);
+
+            let mask_v1 = _mm_xor_si128(bias, v1.0);
+            let mask_v2 = _mm_xor_si128(bias, v2.0);
+            M128Epu16(_mm_xor_si128(_mm_max_epi16(mask_v1, mask_v2), bias))
+        }
     }
 }
 
