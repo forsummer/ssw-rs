@@ -27,6 +27,7 @@ pub mod sse2
 
     impl std::convert::From<&[u8]> for M128Epu8
     {
+        #[inline]
         fn from(s: &[u8]) -> Self
         {
             if s.len() * size_of::<u8>() != 16
@@ -41,6 +42,7 @@ pub mod sse2
 
     impl std::convert::From<&[u16]> for M128Epu16
     {
+        #[inline]
         fn from(s: &[u16]) -> Self
         {
             if s.len() * size_of::<u16>() != 16
@@ -57,6 +59,7 @@ pub mod sse2
     {
         type Output = M128Epu8;
 
+        #[inline]
         fn add(self, rhs: Self) -> Self::Output
         {
             unsafe { M128Epu8(_mm_adds_epu8(self.0, rhs.0)) }
@@ -67,6 +70,7 @@ pub mod sse2
     {
         type Output = M128Epu16;
 
+        #[inline]
         fn add(self, rhs: Self) -> Self::Output
         {
             unsafe { M128Epu16(_mm_adds_epu16(self.0, rhs.0)) } 
@@ -77,6 +81,7 @@ pub mod sse2
     {
         type Output = M128Epu8;
 
+        #[inline]
         fn sub(self, rhs: Self) -> Self::Output
         {
             unsafe { M128Epu8(_mm_subs_epu8(self.0, rhs.0)) }
@@ -87,6 +92,7 @@ pub mod sse2
     {
         type Output = M128Epu16;
 
+        #[inline]
         fn sub(self, rhs: Self) -> Self::Output
         {
             unsafe { M128Epu16(_mm_subs_epu16(self.0, rhs.0)) }
@@ -97,6 +103,7 @@ pub mod sse2
     {
         type Output = M128Epu8;
 
+        #[inline]
         fn shl(self, rhs: usize) -> Self::Output
         {
             let shift_left_byte = |v: &mut __m128i| unsafe { *v = _mm_slli_si128::<1>(*v) };
@@ -116,6 +123,7 @@ pub mod sse2
     {
         type Output = M128Epu16;
 
+        #[inline]
         fn shl(self, rhs: usize) -> Self::Output
         {
             let shift_left_word = |v: &mut __m128i| unsafe { *v = _mm_slli_si128::<2>(*v) };
@@ -133,6 +141,7 @@ pub mod sse2
 
     impl std::cmp::PartialEq for M128Epu8
     {
+        #[inline]
         fn eq(&self, other: &Self) -> bool
         {
             unsafe { _mm_movemask_epi8(_mm_cmpeq_epi8(self.0, other.0)) == 65535 }
@@ -141,6 +150,7 @@ pub mod sse2
 
     impl std::cmp::PartialEq for M128Epu16
     {
+        #[inline]
         fn eq(&self, other: &Self) -> bool
         {
             unsafe { _mm_movemask_epi8(_mm_cmpeq_epi16(self.0, other.0)) == 65535 }
@@ -149,6 +159,7 @@ pub mod sse2
 
     impl std::fmt::Debug for M128Epu8
     {
+        #[inline]
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
         {
             f.debug_list().entries(self.to_vec().iter().rev()).finish()
@@ -157,6 +168,7 @@ pub mod sse2
 
     impl std::fmt::Debug for M128Epu16
     {
+        #[inline]
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
         {
             let v = unsafe { transmute::<M128Epu16, [u16; 8]>(*self) };
