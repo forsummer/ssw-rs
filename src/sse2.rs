@@ -218,11 +218,13 @@ pub mod sse2
 
     impl M128Epu16
     {
+        #[inline]
         pub fn fill(item: u16) -> M128Epu16
         {
             unsafe { transmute::<[u16; 8], M128Epu16>([item; 8]) }
         }
 
+        #[inline]
         pub fn anyelement_gt(&self, other: &M128Epu16) -> bool
         {
             unsafe
@@ -233,21 +235,25 @@ pub mod sse2
             }
         }
 
+        #[inline]
         pub fn to_vec(self) -> Vec<u16>
         {
             unsafe { transmute::<M128Epu16, [u16; 8]>(self).to_vec() }
         }
 
+        #[inline]
         pub fn get_max(&self) -> u16
         {
             *self.to_vec().iter().max().unwrap()
         }
 
+        #[inline]
         pub fn position(&self, other: u16) -> usize
         {
             self.to_vec().iter().rposition(|item| *item == other).unwrap()
         }
 
+        #[inline]
         pub fn contains(&self, other: u16) -> bool
         {
             let item = unsafe { transmute::<[u16; 8], __m128i>([other; 8]) };
@@ -255,17 +261,20 @@ pub mod sse2
             mask != 0
         }
 
+        #[inline]
         pub fn zero_out(&mut self)
         {
             *self = unsafe { M128Epu16(_mm_xor_si128(self.0, self.0)) }
         }
     }
 
+    #[inline]
     pub fn max_epu8(v1: M128Epu8, v2: M128Epu8) -> M128Epu8
     {
         unsafe { M128Epu8(_mm_max_epu8(v1.0, v2.0)) }
     }
 
+    #[inline]
     pub fn max_epu16(v1: M128Epu16, v2: M128Epu16) -> M128Epu16
     {
         unsafe
