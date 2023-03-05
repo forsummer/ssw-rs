@@ -73,7 +73,7 @@ pub mod sse2
         #[inline]
         fn add(self, rhs: Self) -> Self::Output
         {
-            unsafe { M128Epu16(_mm_adds_epu16(self.0, rhs.0)) } 
+            unsafe { M128Epu16(_mm_adds_epu16(self.0, rhs.0)) }
         }
     }
 
@@ -87,7 +87,7 @@ pub mod sse2
             unsafe { M128Epu8(_mm_subs_epu8(self.0, rhs.0)) }
         }
     }
-    
+
     impl std::ops::Sub for M128Epu16
     {
         type Output = M128Epu16;
@@ -305,7 +305,7 @@ pub mod sse2
 mod test_m128_epu8
 {
     use std::mem::transmute;
-    
+
     use super::sse2::M128Epu8;
     use super::sse2::max_epu8;
 
@@ -456,7 +456,7 @@ mod test_m128_epu8
         v.zero_out();
         assert_eq!(v, zero);
     }
-    
+
     #[test]
     fn test_max_epu8()
     {
@@ -518,7 +518,7 @@ mod test_m128_epu16
         let sum = unsafe { transmute::<[u16; 8], M128Epu16>(sum) };
         assert_eq!(v1 + v2, sum);
     }
-    
+
     #[test]
     fn test_sub()
     {

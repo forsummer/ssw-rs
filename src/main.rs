@@ -24,7 +24,7 @@ struct CliArgs
     #[clap(value_parser = is_integer)]
     #[clap(help = "Add this score when two residue match")]
     pub _match: i8,
-    
+
     #[clap(name = "gap-open", long, short = 'o', display_order = 3)]
     #[clap(default_value_t = 3)]
     #[clap(value_parser = is_positive_integer)]
@@ -101,7 +101,7 @@ fn main()
 
     let go = cli_args.gap_open;
     let ge = cli_args.gap_extend;
-    
+
     let d_set = fastx_parser(cli_args.db);
     let q_set = fastx_parser(cli_args.query);
 
@@ -153,7 +153,7 @@ fn main()
             true  => AlignFlag::Path,
             false => AlignFlag::End,
         };
-        
+
         let mut time_cost_total = 0.0;
         let mut res_set = Vec::with_capacity(d_set.len() * q_set.len());
         for d in d_set.iter()

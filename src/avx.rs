@@ -1,6 +1,6 @@
 #[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 pub mod avx2
-{    
+{
     use std::mem::{ size_of, transmute };
     use std::arch::x86_64::__m256i;
     use std::arch::x86_64::_mm256_set_epi8;
@@ -28,7 +28,7 @@ pub mod avx2
     pub struct M256Epu16(pub __m256i);
 
     impl std::convert::From<&[u8]> for M256Epu8
-    {   
+    {
         fn from(s: &[u8]) -> Self
         {
             if s.len() * size_of::<u8>() != 32
@@ -55,7 +55,7 @@ pub mod avx2
             unsafe { M256Epu16(transmute::<[u16; 16], __m256i>(v)) }
         }
     }
-    
+
     impl std::iter::FromIterator<u8> for M256Epu8
     {
         #[inline]
@@ -293,7 +293,7 @@ pub mod avx2
             const IMM: i32 = 1;
             let mut tmp = unsafe { _mm256_max_epu8(self.0, _mm256_permute2x128_si256::<IMM>(self.0, self.0)) };
 
-            let mask = unsafe 
+            let mask = unsafe
             { [ _mm256_set_epi8(-127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127,
                     7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8),
                 _mm256_set_epi8(-127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127,
@@ -363,7 +363,7 @@ pub mod avx2
             const IMM: i32 = 1;
             let mut tmp = unsafe { _mm256_max_epu16(self.0, _mm256_permute2x128_si256::<IMM>(self.0, self.0)) };
 
-            let mask = unsafe 
+            let mask = unsafe
             { [ _mm256_set_epi8(-127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127,
                     7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8),
                 _mm256_set_epi8(-127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127, -127,
@@ -452,7 +452,7 @@ mod test_m256_epu16
         let res = unsafe { M256Epu16(_mm256_set_epi16(20, 3, 10, 4, 9, 10, 11, 0, 2, 14, 15, 87, 19, 1, 0, 1)) };
         assert_eq!(max_epu16(a, b), res);
     }
-    
+
     #[test]
     fn test_anyelement_gt()
     {
@@ -571,7 +571,7 @@ mod test_m256_epu16
     fn test_shl()
     {
         let v = unsafe { M256Epu16(_mm256_set_epi16(16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)) };
-        
+
         let res0 = unsafe { M256Epu16(_mm256_set_epi16( 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)) };
         let res1 = unsafe { M256Epu16(_mm256_set_epi16( 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0)) };
         let res2 = unsafe { M256Epu16(_mm256_set_epi16( 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0)) };
