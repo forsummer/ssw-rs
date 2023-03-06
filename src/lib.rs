@@ -3,46 +3,46 @@
 //! which use **AVX2** instruction to parallelizez the algorithm in data-level.
 //! It can be used to alignment two sequences, return **best aignment score**,
 //! **alignment end** and **optimal traceback path**.
-//! 
+//!
 //! This library provides the following two kinds of API in Rust:
 //! - smith-waterman algorithm implementaion which accelerated by **AVX2**
 //! - Wrapping of scoring matrix: `blosum50`, `blosum62` and `pam120`
-//! 
+//!
 //! ### Example: Use smith-waterman implementation accelerated by AVX2
 //! ```rust
 //! use ssw::score::blosum50;
 //! use ssw::pairwise::{ AlignFlag, smith_waterman_avx2 };
-//! 
+//!
 //! fn main()
 //! {
 //!     // DataBase protein sequence
 //!     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
-//!     
+//!
 //!     // Query protein sequence
 //!     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();
-//!     
+//!
 //!     // Gap open penalty score
 //!     let go = 3;
-//!     
+//!
 //!     // Gap extennd penalty score
 //!     let ge = 2;
-//!     
+//!
 //!     // When `smith_waterman_avx2()` receives `AlignFlag::End`,
 //!     // it will return only the best alignment score and position.
 //!     // Conversely, when it receives `AlignFlag::Path`, it will return optimal score,
 //!     // start and end position of best alignment and best traceback path
 //!     let flag = AlignFlag::Path;
-//!     
+//!
 //!     // Module `score` packaging `blosum50`, `blosum62` and `pam120` matrix to a closure
 //!     // which like `Fn(u8, u8) -> Option<i8>`. Therefore, the user does not need to
 //!     // care about the index arrangement of the scoring matrix and whether a pair
 //!     // has a corresponding score in the matrix
 //!     let pair_score = blosum50();
-//!     
+//!
 //!     // Alignment two sequence
 //!     let align_res = smith_waterman_avx2(d, q, go, ge, &flag, &pair_score)
 //!         .map_or_else(|err| panic!("{}", err), |res| res);
-//!     
+//!
 //!     println!("{}", align_res);
 //!     // `AlignResult` has implemented `std::fmt::Display` trait.
 //!     // Therefore, the alignment results can be printed directly,
@@ -51,32 +51,32 @@
 //!     // optimal_alignment_score: 216, d_start 1, d_end: 33, q_start 1, q_end: 30
 //! 	//
 //! 	// d_best: 1 CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA 33
-//!   	//           ||||||||||||*|||||||||||   |||||| 
+//!   	//           ||||||||||||*|||||||||||   ||||||
 //! 	// q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
 //! }
 //! ```
-//! 
+//!
 //! ### Example: Use serial implementation of smith-waterman
 //! ```rust
 //! use ssw::score::blosum50;
 //! use ssw::pairwise::{ AlignFlag, smith_waterman_scalar };
-//!  
+//!
 //! fn main()
 //! {
 //!     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
 //!     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();
-//!      
+//!
 //!     let go = 3;
 //!     let ge = 2;
 //!     let flag = AlignFlag::Path;
 //!     let pair_score = blosum50();
-//!      
+//!
 //!     // `smith_waterman_avx2` and `smith_waterman_scalar` accept the same parameters,
 //!     // the difference being that the calculation speed of `smith_waterman_scalar`
 //!     // is much slower than `smith_waterman_avx2`
 //!     let align_res = smith_waterman_scalar(d, q, go, ge, &flag, &pair_score)
 //!         .map_or_else(|err| panic!("{}", err), |res| res);
-//!      
+//!
 //!     println!("{}", align_res);
 //!     // `AlignResult` has implemented `std::fmt::Display` trait.
 //!     // Therefore, the alignment results can be printed directly,
@@ -85,12 +85,16 @@
 //!     // optimal_alignment_score: 216, d_start 1, d_end: 33, q_start 1, q_end: 30
 //! 	//
 //! 	// d_best: 1 CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA 33
-//!   	//           ||||||||||||*|||||||||||   |||||| 
+//!   	//           ||||||||||||*|||||||||||   ||||||
 //! 	// q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
 //! }
 //! ```
 
+#[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 mod avx;
+
+#[cfg(all(target_feature = "sse2"))]
+mod sse2;
 
 /// Provide wrapping of scoring matrix, such as **blosum50**, **blosum62** and **pam120**.
 /// (The scoring matrix is wrapped into a closure like `Fn(u8, u8) -> Option<i8>`)
