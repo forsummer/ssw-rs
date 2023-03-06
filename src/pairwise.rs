@@ -484,6 +484,7 @@ mod sw_avx2
                     *h_buffer_mut_ref = h;
 
                     prev_h = *get_unchecked!(h_store, j);
+                    max = max_epu8(max, h);
                 }
 
                 f = f << 1;
@@ -500,6 +501,7 @@ mod sw_avx2
                     *e_store_mut_ref = max_epu8(e_store_uncorrect, h_buffer_correct - go);
 
                     f = f - ge;
+                    max = max_epu8(max, h_buffer_correct);
 
                     j = j + 1;
                     if j >= seg_num
@@ -509,9 +511,9 @@ mod sw_avx2
                     }
                 }
 
-                h_buffer.iter().for_each(|h| max = max_epu8(max, *h));
-                let tmp = max.get_max();
+                // h_buffer.iter().for_each(|h| max = max_epu8(max, *h));
 
+                let tmp = max.get_max();
                 if tmp >= overflow_threshold
                 {
                     Err(AlignErr::OverFlow
@@ -663,6 +665,7 @@ mod sw_avx2
                     *h_buffer_mut_ref = h;
 
                     prev_h = *get_unchecked!(h_store, j);
+                    max = max_epu16(max, h);
                 }
 
                 f = f << 1;
@@ -679,6 +682,7 @@ mod sw_avx2
                     *e_store_mut_ref = max_epu16(e_store_uncorrect, h_buffer_correct - go);
 
                     f = f - ge;
+                    max = max_epu16(max, h_buffer_correct);
 
                     j = j + 1;
                     if j >= seg_num
@@ -688,10 +692,9 @@ mod sw_avx2
                     }
                 }
 
-                h_buffer.iter().for_each(|h| max = max_epu16(max, *h));
+                // h_buffer.iter().for_each(|h| max = max_epu16(max, *h));
 
                 let tmp = max.get_max();
-
                 if tmp >= overflow_threshold
                 {
                     Err (AlignErr::OverFlow
@@ -837,6 +840,7 @@ mod sw_avx2
                 *h_buffer_mut_ref = h;
 
                 prev_h = *get_unchecked!(h_store, j);
+                max = max_epu8(max, h);
             }
 
             f = f << 1;
@@ -853,6 +857,7 @@ mod sw_avx2
                 *e_store_mut_ref = max_epu8(e_store_uncorrect, h_buffer_correct - go);
 
                 f = f - ge;
+                max = max_epu8(max, h_buffer_correct);
 
                 j = j + 1;
                 if j >= seg_num
@@ -862,9 +867,9 @@ mod sw_avx2
                 }
             }
 
-            h_buffer.iter().for_each(|h| max = max_epu8(max, *h));
-            let tmp = max.get_max();
+            // h_buffer.iter().for_each(|h| max = max_epu8(max, *h));
 
+            let tmp = max.get_max();
             if tmp >= overflow_threshold
             {
                 Err(AlignErr::OverFlow
@@ -936,6 +941,7 @@ mod sw_avx2
                 *h_buffer_mut_ref = h;
 
                 prev_h = *get_unchecked!(h_store, j);
+                max = max_epu16(max, h);
             }
 
             f = f << 1;
@@ -952,6 +958,7 @@ mod sw_avx2
                 *e_store_mut_ref = max_epu16(e_store_uncorrect, h_buffer_correct - go);
 
                 f = f - ge;
+                max = max_epu16(max, h_buffer_correct);
 
                 j = j + 1;
                 if j >= seg_num
@@ -961,10 +968,9 @@ mod sw_avx2
                 }
             }
 
-            h_buffer.iter().for_each(|h| max = max_epu16(max, *h));
+            // h_buffer.iter().for_each(|h| max = max_epu16(max, *h));
 
             let tmp = max.get_max();
-
             if tmp >= overflow_threshold
             {
                 Err (AlignErr::OverFlow
