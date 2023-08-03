@@ -63,13 +63,15 @@ struct CliArgs
 
 fn is_integer(arg: &str) -> Result<i8, String>
 {
-    let score = arg.parse().map_err(|_expection| format!("{} not a i8 integer", arg))?;
+    let score = arg.parse()
+        .map_err(|_expection| format!("{} not a i8 integer", arg))?;
     Ok(score)
 }
 
 fn is_positive_integer(arg: &str) -> Result<u8, String>
 {
-    let score = arg.parse().map_err(|_expection| format!("{} not a non-negative integer", arg))?;
+    let score = arg.parse()
+        .map_err(|_expection| format!("{} not a non-negative integer", arg))?;
     Ok(score)
 }
 
@@ -161,7 +163,8 @@ fn main()
             for q in q_set.iter()
             {
                 let tick = Instant::now();
-                let res = smith_waterman_avx2(&d.seq, &q.seq, go, ge, &flag, &score).expect("Overflow, d/q sequence is too long");
+                let res = smith_waterman_avx2(&d.seq, &q.seq, go, ge, &flag, &score)
+                    .expect("Overflow, d/q sequence is too long");
                 time_cost_total = time_cost_total + tick.elapsed().as_secs_f64();
                 res_set.push((&d.id, &q.id, res));
             }
