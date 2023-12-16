@@ -2,24 +2,26 @@
 pub mod avx2
 {
     use std::mem::{ size_of, transmute };
-    use std::arch::x86_64::__m256i;
-    use std::arch::x86_64::_mm256_set_epi8;
-    use std::arch::x86_64::_mm256_set1_epi8;
-    use std::arch::x86_64::_mm256_set1_epi16;
-    use std::arch::x86_64::_mm256_max_epu8;
-    use std::arch::x86_64::_mm256_max_epu16;
-    use std::arch::x86_64::_mm256_adds_epu8;
-    use std::arch::x86_64::_mm256_adds_epu16;
-    use std::arch::x86_64::_mm256_subs_epu8;
-    use std::arch::x86_64::_mm256_subs_epu16;
-    use std::arch::x86_64::_mm256_load_si256;
-    use std::arch::x86_64::_mm256_cmpeq_epi8;
-    use std::arch::x86_64::_mm256_cmpeq_epi16;
-    use std::arch::x86_64::_mm256_shuffle_epi8;
-    use std::arch::x86_64::_mm256_movemask_epi8;
-    use std::arch::x86_64::_mm256_alignr_epi8;
-    use std::arch::x86_64::_mm256_xor_si256;
-    use std::arch::x86_64::_mm256_permute2x128_si256;
+    use std::arch::x86_64::{
+        __m256i,
+        _mm256_set_epi8,
+        _mm256_set1_epi8,
+        _mm256_set1_epi16,
+        _mm256_max_epu8,
+        _mm256_max_epu16,
+        _mm256_adds_epu8,
+        _mm256_adds_epu16,
+        _mm256_subs_epu8,
+        _mm256_subs_epu16,
+        _mm256_load_si256,
+        _mm256_cmpeq_epi8,
+        _mm256_cmpeq_epi16,
+        _mm256_shuffle_epi8,
+        _mm256_movemask_epi8,
+        _mm256_alignr_epi8,
+        _mm256_xor_si256,
+        _mm256_permute2x128_si256,
+    };
 
     #[derive(Clone, Copy)]
     pub struct M256Epu8(pub __m256i);

@@ -1,23 +1,24 @@
 #[cfg(target_feature = "sse2")]
 pub mod sse2
 {
-    use std::mem::size_of;
-    use std::mem::transmute;
-    use std::arch::x86_64::__m128i;
-    use std::arch::x86_64::_mm_max_epu8;
-    use std::arch::x86_64::_mm_max_epi16;
-    use std::arch::x86_64::_mm_adds_epu8;
-    use std::arch::x86_64::_mm_subs_epu8;
-    use std::arch::x86_64::_mm_adds_epu16;
-    use std::arch::x86_64::_mm_subs_epu16;
-    use std::arch::x86_64::_mm_set1_epi8;
-    use std::arch::x86_64::_mm_set1_epi16;
-    use std::arch::x86_64::_mm_xor_si128;
-    use std::arch::x86_64::_mm_cmpeq_epi8;
-    use std::arch::x86_64::_mm_cmpeq_epi16;
-    use std::arch::x86_64::_mm_slli_si128;
-    use std::arch::x86_64::_mm_load_si128;
-    use std::arch::x86_64::_mm_movemask_epi8;
+    use std::mem::{ size_of, transmute };
+    use std::arch::x86_64::{
+        __m128i,
+        _mm_max_epu8, 
+        _mm_max_epi16,               
+        _mm_adds_epu8,
+        _mm_subs_epu8,
+        _mm_adds_epu16,
+        _mm_subs_epu16,
+        _mm_set1_epi8,
+        _mm_set1_epi16,
+        _mm_xor_si128,
+        _mm_cmpeq_epi8,
+        _mm_cmpeq_epi16,
+        _mm_slli_si128,
+        _mm_load_si128,
+        _mm_movemask_epi8,
+    };
 
     #[derive(Clone, Copy)]
     pub struct M128Epu8(__m128i);
