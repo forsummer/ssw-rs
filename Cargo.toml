@@ -19,3 +19,4 @@ debug = true
 tabular = "0.2.0"
 needletail = "0.5.1"
 clap = { version = "3.2.13", features = ["derive"] }
+pyo3 = "0.20.2"
