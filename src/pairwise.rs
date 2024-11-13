@@ -43,29 +43,6 @@ enum AlignEnd
     U32 { var: u32, pos: (usize, usize) },
 }
 
-/// Defines several types of errors that can occur when running alignment
-///
-/// `AlignErr` already implements [`std::fmt::Display`] trait, so it can be output via [`println!`]
-///
-/// ### Variants
-/// * `OverFlow`: Numerical overflow error during calculation
-/// * `IllegallChar`: Database or query sequence contain illegal character
-/// * `GetScoreErr`: There is no corresponding score for character pairs in the scoring rules
-#[derive(Debug, thiserror::Error)]
-pub enum Error
-{
-    /// Numerical overflow error during calculation
-    #[error("Numerical overflow during calculation")]
-    OverFlow,
-
-    /// Database or query sequence contain illegal character
-    #[error("Database or query sequence contain illegal character")]
-    IllegalChar,
-
-    /// There is no corresponding score for character pairs in the scoring rules
-    #[error("No corresponding score for character pairs in scoring rule")]
-    GetScoreErr,
-}
 
 // impl std::fmt::Debug for AlignErr
 // {
@@ -221,8 +198,9 @@ mod sw_avx2
 {
     use std::mem::swap;
 
+    use crate::Error;
     use crate::avx::avx2::{ M256Epu8, M256Epu16, max_epu8, max_epu16 };
-    use crate::pairwise::{ AlignEnd, Error, AlignFlag, AlignResult };
+    use crate::pairwise::{ AlignEnd, AlignFlag, AlignResult };
 
     enum Profile
     {
@@ -1202,9 +1180,11 @@ mod sw_avx2
 mod sw_sse2
 {
     use std::mem::swap;
-
-    use crate::pairwise::{Error, AlignEnd, AlignFlag, AlignResult};
+    
+    use crate::Error;
+    use crate::pairwise::{AlignEnd, AlignFlag, AlignResult};
     use crate::sse2::sse2::{M128Epu8, M128Epu16, max_epu8, max_epu16};
+
 
     enum Profile
     {
@@ -2070,7 +2050,9 @@ mod sw_scalar
 {
     use std::mem::swap;
 
-    use crate::pairwise::{ AlignEnd, Error, AlignFlag, AlignResult };
+    use crate::Error;
+    use crate::pairwise::{AlignEnd, AlignFlag, AlignResult};
+
 
     fn sw_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, terminater: u32, score: &S) -> Result<AlignEnd, Error>
     where
