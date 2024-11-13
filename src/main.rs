@@ -24,7 +24,7 @@ struct CliArgs
     #[clap(value_parser = is_integer)]
     #[clap(help = "Add this score when two residue match")]
     pub _match: i8,
-    
+
     #[clap(name = "gap-open", long, short = 'o', display_order = 3)]
     #[clap(default_value_t = 3)]
     #[clap(value_parser = is_positive_integer)]
@@ -63,13 +63,15 @@ struct CliArgs
 
 fn is_integer(arg: &str) -> Result<i8, String>
 {
-    let score = arg.parse().map_err(|_expection| format!("{} not a i8 integer", arg))?;
+    let score = arg.parse()
+        .map_err(|_| format!("{} not a i8 integer", arg))?;
     Ok(score)
 }
 
 fn is_positive_integer(arg: &str) -> Result<u8, String>
 {
-    let score = arg.parse().map_err(|_expection| format!("{} not a non-negative integer", arg))?;
+    let score = arg.parse()
+        .map_err(|_| format!("{} not a non-negative integer", arg))?;
     Ok(score)
 }
 
@@ -101,7 +103,7 @@ fn main()
 
     let go = cli_args.gap_open;
     let ge = cli_args.gap_extend;
-    
+
     let d_set = fastx_parser(cli_args.db);
     let q_set = fastx_parser(cli_args.query);
 
@@ -118,7 +120,7 @@ fn main()
         };
 
         let mut time_cost_total = 0.0;
-        let mut res_set = Vec::with_capacity(d_set.len() * q_set.len());
+        let mut results = Vec::with_capacity(d_set.len() * q_set.len());
         for d in d_set.iter()
         {
             for q in q_set.iter()
@@ -127,11 +129,11 @@ fn main()
                 let res = smith_waterman_avx2(&d.seq, &q.seq, go, ge, &flag, score)
                     .expect("Overflow, d/q sequence is too long");
                 time_cost_total = time_cost_total + tick.elapsed().as_secs_f64();
-                res_set.push((&d.id, &q.id, res));
+                results.push((&d.id, &q.id, res));
             }
         }
 
-        for res in res_set.iter()
+        for res in results.iter()
         {
             println!("d_id: {}", res.0);
             println!("q_id: {}", res.1);
@@ -153,21 +155,22 @@ fn main()
             true  => AlignFlag::Path,
             false => AlignFlag::End,
         };
-        
+
         let mut time_cost_total = 0.0;
-        let mut res_set = Vec::with_capacity(d_set.len() * q_set.len());
+        let mut results = Vec::with_capacity(d_set.len() * q_set.len());
         for d in d_set.iter()
         {
             for q in q_set.iter()
             {
                 let tick = Instant::now();
-                let res = smith_waterman_avx2(&d.seq, &q.seq, go, ge, &flag, &score).expect("Overflow, d/q sequence is too long");
+                let res = smith_waterman_avx2(&d.seq, &q.seq, go, ge, &flag, &score)
+                    .expect("Overflow, d/q sequence is too long");
                 time_cost_total = time_cost_total + tick.elapsed().as_secs_f64();
-                res_set.push((&d.id, &q.id, res));
+                results.push((&d.id, &q.id, res));
             }
         }
 
-        for res in res_set.iter()
+        for res in results.iter()
         {
             println!("d_id: {}", res.0);
             println!("q_id: {}", res.1);

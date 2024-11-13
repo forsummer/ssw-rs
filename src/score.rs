@@ -1,23 +1,23 @@
 mod blosum
 {
     /// Wrapping of scoring matrix **blosum62**
-    /// 
+    ///
     /// `blosum62()` is a wrapping of scoring matrix **blosum62**. When function called, if will return a closure like `Fn(u8, u8) -> Option<i8>`.
     /// The closure which return accept a pair of residue(nucleotide or amino acid) character, then return the pair score.
     /// If residue pair has no corresponding score in scoring matrix, closure will return `None`.
-    /// 
+    ///
     /// ### Example
     /// ```rust
-    /// use score::blosum62;
-    /// 
+    /// use ssw::score::blosum62;
+    ///
     /// fn main()
     /// {
     ///     // In this case, type of `blosum62_mat` is `Fn(u8, u8) -> Option<i8>`
     ///     let blosum62_mat = blosum62();
-    ///    
+    ///
     ///     // Character pairs "A - H" corresponding to score "-2", so the closure return `Some(-2)`.
     ///     assert_eq!(blosum62_mat(b'A', b'H'), Some(-2));
-    ///     
+    ///
     ///     // Character pair "A-1" has no corresponding score, so the closure return `None`.
     ///     assert_eq!(blosum62_mat(b'A', b'1'), None);
     /// }
@@ -52,34 +52,44 @@ mod blosum
             [  0, -1, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -2, -1, -1,  0,  0, -1, -1, -2, -1, -1, -1, -4 ],
             [ -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4,  1 ]];
 
-        let score = move |r1, r2|
+        let score = move |r1: u8, r2: u8|
         {
-            let i = if r1 == b'*' { 26 } else { (r1 - 65) as usize };
-            let j = if r2 == b'*' { 26 } else { (r2 - 65) as usize };
-            let res = if i >= 27 || j >= 27 { None } else { Some(mat[i][j]) };
-            res
+            let i = match r1.to_ascii_uppercase()
+            {
+                b'*' => 26 as usize,
+                r if (65..=90).contains(&r) => (r - 65) as usize,
+                _ => return None,
+            };
+
+            let j = match r2.to_ascii_uppercase()
+            {
+                b'*' => 26 as usize,
+                r if (65..=90).contains(&r) => (r - 65) as usize,
+                _ => return None,
+            };
+            Some(mat[i][j])
         };
         Box::new(score)
     }
-  
+
     /// Wrapping of scoring matrix **blosum50**
-    /// 
+    ///
     /// When blosum50() was called, it will return a closure like `Fn(u8, u8) -> Option<i8>`, this closure accept a letter pairs.
     /// If there is an associated score of letter pairs in the score matrix, the closure will return the score, else closure return `None`
-    /// 
+    ///
     /// ### Example
     /// ```rust
-    /// use score::blosum50;
-    /// 
+    /// use ssw::score::blosum50;
+    ///
     /// fn main()
     /// {
     ///     // In this case, the type of `blosum50_mat` is `Box<Fn(u8, u8) -> Option<i8>>`.
     ///     let blosum50_mat = blosum50();
-    ///     
+    ///
     ///     // In scoring matrix `blosum50`, character pairs "A - H" corresponding to score "-2"
     ///     // So, the closure return `Some(-2)`.
     ///     assert_eq!(blosum50_mat(b'A', b'H'), Some(-2));
-    /// 
+    ///
     ///     // Character pairs "A - 1" has no correspond score in scoring matrix, so the closure return `None`.
     ///     assert_eq!(blosum50_mat(b'A', b'1'), None);
     /// }
@@ -114,12 +124,22 @@ mod blosum
             [ -1,  2, -3,  1,  5, -4, -2,  0, -3,  0,  1, -3, -1,  0,  0, -1,  4,  0,  0, -1,  0, -3, -2, -1, -2,  5, -5 ],
             [ -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5,  1 ]];
 
-        let score = move |r1, r2|
+        let score = move |r1: u8, r2: u8|
         {
-            let i = if r1 == b'*' { 26 } else { (r1 - 65) as usize };
-            let j = if r2 == b'*' { 26 } else { (r2 - 65) as usize };
-            let res = if i >= 27 || j >= 27 { None } else { Some(mat[i][j]) };
-            res
+            let i = match r1.to_ascii_uppercase()
+            {
+                b'*' => 26,
+                r if (65..=90).contains(&r) => (r - 65) as usize,
+                _ => return None,
+            };
+
+            let j = match r2.to_ascii_uppercase()
+            {
+                b'*' => 26,
+                r if (65..=90).contains(&r) => (r - 65) as usize,
+                _ => return None,
+            };
+            Some(mat[i][j])
         };
         Box::new(score)
     }
@@ -128,14 +148,14 @@ mod blosum
 mod pam
 {
     /// Wrapping of scoring matrix **pam120**
-    /// 
+    ///
     /// When `pam120()` was called, a closure like `Box<Fn(u8, u8) -> Option<i8>>` will be returned.
     /// If there is an associated score of letter pairs in the score matrix, the closure will return the score, else closure return `None`
-    /// 
+    ///
     /// ### Example
     /// ```rust
-    /// use score::pam120;
-    /// 
+    /// use ssw::score::pam120;
+    ///
     /// fn main()
     /// {
     ///     // In this case, the type of `pam120_mat` is `Box<Fn(u8, u8) -> Option<i8>>`.
@@ -144,12 +164,12 @@ mod pam
     ///     // In scoring matrix `pam120`, character pairs "A - H" corresponding to score "-3".
     ///     // So, the closure return `Some(-3)`.
     ///     assert_eq!(pam120_mat(b'A', b'H'), Some(-3));
-    /// 
+    ///
     ///     // Character pairs "A - 1" has not corresponding score in `pam120`, so the closure return 'None'.
     ///     assert_eq!(pam120_mat(b'A', b'1'), None);
     /// }
     /// ```
-    
+
     pub fn pam120() -> Box<dyn Fn(u8, u8) -> Option<i8>>
     {
         let mat = [[  3,  0, -3,  0,  0, -4,  1, -3, -1, -2, -2, -3, -2, -1, -1,  1, -1, -3,  1,  1, -1,  0, -7, -4, -1, -1, -8 ],
@@ -180,12 +200,22 @@ mod pam
             [ -1, -1, -4, -2, -1, -3, -2, -2, -1, -2, -2, -2, -2, -1, -2, -2, -1, -2, -1, -1, -2, -1, -5, -3, -1, -2, -8 ],
             [ -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8,  1 ]];
 
-        let score = move |r1, r2|
+        let score = move |r1: u8, r2: u8|
         {
-            let i = if r1 == b'*' { 26 } else { (r1 - 65) as usize };
-            let j = if r2 == b'*' { 26 } else { (r2 - 65) as usize };
-            let res = if i >= 27 || j >= 27 { None } else { Some(mat[i][j]) };
-            res
+            let i = match r1.to_ascii_uppercase()
+            {
+                b'*' => 26,
+                r if (65..=90).contains(&r) => (r - 65) as usize,
+                _ => return None,
+            };
+
+            let j = match r2.to_ascii_uppercase()
+            {
+                b'*' => 26,
+                r if (65..=90).contains(&r) => (r - 65) as usize,
+                _ => return None,
+            };
+            Some(mat[i][j])
         };
         Box::new(score)
     }

@@ -17,5 +17,7 @@ debug = true
 
 [dependencies]
 tabular = "0.2.0"
-needletail = "0.4.1"
+needletail = "0.5.1"
 clap = { version = "3.2.13", features = ["derive"] }
+pyo3 = "0.20.2"
+thiserror = "2.0.3"
