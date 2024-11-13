@@ -51,51 +51,55 @@ enum AlignEnd
 /// * `OverFlow`: Numerical overflow error during calculation
 /// * `IllegallChar`: Database or query sequence contain illegal character
 /// * `GetScoreErr`: There is no corresponding score for character pairs in the scoring rules
-pub enum AlignErr
+#[derive(Debug, thiserror::Error)]
+pub enum Error
 {
     /// Numerical overflow error during calculation
-    OverFlow    { file: String, line: usize, msg: String },
+    #[error("Numerical overflow during calculation")]
+    OverFlow,
 
     /// Database or query sequence contain illegal character
-    IllegalChar { file: String, line: usize, msg: String },
+    #[error("Database or query sequence contain illegal character")]
+    IllegalChar,
 
     /// There is no corresponding score for character pairs in the scoring rules
-    GetScoreErr { file: String, line: usize, msg: String },
+    #[error("No corresponding score for character pairs in scoring rule")]
+    GetScoreErr,
 }
 
-impl std::fmt::Debug for AlignErr
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-    {
-        let (file, line, msg) = match self
-        {
-            AlignErr::OverFlow    { file, line, msg } => (file, line, msg),
-            AlignErr::IllegalChar { file, line, msg } => (file, line, msg),
-            AlignErr::GetScoreErr { file, line, msg } => (file, line, msg),
-        };
+// impl std::fmt::Debug for AlignErr
+// {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+//     {
+//         let (file, line, msg) = match self
+//         {
+//             AlignErr::OverFlow    { file, line, msg } => (file, line, msg),
+//             AlignErr::IllegalChar { file, line, msg } => (file, line, msg),
+//             AlignErr::GetScoreErr { file, line, msg } => (file, line, msg),
+//         };
 
-        f.debug_struct("Error")
-            .field("file", file)
-            .field("line", line)
-            .field("msg", msg)
-            .finish()
-    }
-}
+//         f.debug_struct("Error")
+//             .field("file", file)
+//             .field("line", line)
+//             .field("msg", msg)
+//             .finish()
+//     }
+// }
 
-impl std::fmt::Display for AlignErr
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-    {
-        let (file, line, msg) = match self
-        {
-            AlignErr::OverFlow    { file, line, msg } => (file, line, msg),
-            AlignErr::IllegalChar { file, line, msg } => (file, line, msg),
-            AlignErr::GetScoreErr { file, line, msg } => (file, line, msg),
-        };
+// impl std::fmt::Display for AlignErr
+// {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+//     {
+//         let (file, line, msg) = match self
+//         {
+//             AlignErr::OverFlow    { file, line, msg } => (file, line, msg),
+//             AlignErr::IllegalChar { file, line, msg } => (file, line, msg),
+//             AlignErr::GetScoreErr { file, line, msg } => (file, line, msg),
+//         };
 
-        write!(f, "error: {} in {}, {}", msg, file, line)
-    }
-}
+//         write!(f, "error: {} in {}, {}", msg, file, line)
+//     }
+// }
 
 /// Store alignment result of smith-waterman.
 /// If only find the best alignment endpoint with [`smith_waterman_avx2`](fn@crate::pairwise::smith_waterman_avx2),
@@ -218,7 +222,7 @@ mod sw_avx2
     use std::mem::swap;
 
     use crate::avx::avx2::{ M256Epu8, M256Epu16, max_epu8, max_epu16 };
-    use crate::pairwise::{ AlignEnd, AlignErr, AlignFlag, AlignResult };
+    use crate::pairwise::{ AlignEnd, Error, AlignFlag, AlignResult };
 
     enum Profile
     {
@@ -228,7 +232,7 @@ mod sw_avx2
 
     enum ProfileType { Epu8, Epu16 }
 
-    fn query_profile<S>(d: &[u8], q: &[u8], p: ProfileType, f: S) -> Result<Profile, AlignErr>
+    fn query_profile<S>(d: &[u8], q: &[u8], p: ProfileType, f: S) -> Result<Profile, Error>
     where
         S: Fn(u8, u8) -> Option<i8>
     {
@@ -250,13 +254,7 @@ mod sw_avx2
             {
                 let pair_score = match f(*r1, *r2)
                 {
-                    None => Err(
-                        AlignErr::GetScoreErr
-                        {
-                            file: file!().to_string(),
-                            line: line!() as usize,
-                            msg: "Can not get pair score with this scoring function".to_string()
-                        })?,
+                    None => Err(Error::GetScoreErr)?,
                     Some(score) => score,
                 };
                 bias = min!(bias, pair_score);
@@ -430,7 +428,7 @@ mod sw_avx2
         (d_best, q_best)
     }
 
-    fn ssw_byte(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u8, profile: &Profile) -> Result<AlignEnd, AlignErr>
+    fn ssw_byte(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u8, profile: &Profile) -> Result<AlignEnd, Error>
     {
         let go = M256Epu8::fill(go);
         let ge = M256Epu8::fill(ge);
@@ -516,12 +514,7 @@ mod sw_avx2
                 let tmp = max.get_max();
                 if tmp >= overflow_threshold
                 {
-                    Err(AlignErr::OverFlow
-                    {
-                        file: file!().to_string(),
-                        line: line!() as usize,
-                        msg: "Score out of u8 range".to_string()
-                    })?
+                    Err(Error::OverFlow)?
                 }
 
                 if tmp > opt
@@ -611,7 +604,7 @@ mod sw_avx2
         Ok(AlignEnd::U8 { var: opt, pos })
     }
 
-    fn ssw_word(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd, AlignErr>
+    fn ssw_word(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd, Error>
     {
         let go = M256Epu16::fill(go as u16);
         let ge = M256Epu16::fill(ge as u16);
@@ -697,12 +690,7 @@ mod sw_avx2
                 let tmp = max.get_max();
                 if tmp >= overflow_threshold
                 {
-                    Err (AlignErr::OverFlow
-                    {
-                        file: file!().to_string(),
-                        line: line!() as usize,
-                        msg: "Score out of u16 range".to_string(),
-                    })?
+                    Err(Error::OverFlow)?
                 }
 
                 if tmp > opt
@@ -789,7 +777,7 @@ mod sw_avx2
         Ok (AlignEnd::U16 { var: opt, pos })
     }
 
-    fn ssw_byte_opt_only(d: &[u8], q: &[u8], go: u8, ge: u8, profile: &Profile) -> Result<u32, AlignErr>
+    fn ssw_byte_opt_only(d: &[u8], q: &[u8], go: u8, ge: u8, profile: &Profile) -> Result<u32, Error>
     {
         let go = M256Epu8::fill(go);
         let ge = M256Epu8::fill(ge);
@@ -872,12 +860,7 @@ mod sw_avx2
             let tmp = max.get_max();
             if tmp >= overflow_threshold
             {
-                Err(AlignErr::OverFlow
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Score out of u8 range".to_string()
-                })?
+                Err(Error::OverFlow)?
             }
 
             *get_mut_unchecked!(max_col_score, i) = tmp;
@@ -890,7 +873,7 @@ mod sw_avx2
         Ok(opt as u32)
     }
 
-    fn ssw_word_opt_only(d: &[u8], q: &[u8], go: u8, ge: u8, profile: &Profile) -> Result<u32, AlignErr>
+    fn ssw_word_opt_only(d: &[u8], q: &[u8], go: u8, ge: u8, profile: &Profile) -> Result<u32, Error>
     {
         let go = M256Epu16::fill(go as u16);
         let ge = M256Epu16::fill(ge as u16);
@@ -973,12 +956,7 @@ mod sw_avx2
             let tmp = max.get_max();
             if tmp >= overflow_threshold
             {
-                Err (AlignErr::OverFlow
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Score out of u16 range".to_string(),
-                })?
+                Err(Error::OverFlow)?
             }
 
             *get_mut_unchecked!(max_col_score, i) = tmp;
@@ -1093,31 +1071,16 @@ mod sw_avx2
     ///     // q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
     /// }
     /// ```
-    pub fn smith_waterman_avx2<S>(d: &[u8], q:&[u8], go: u8, ge: u8, flag: &AlignFlag, f: S) -> Result<AlignResult, AlignErr>
+    pub fn smith_waterman_avx2<S>(d: &[u8], q:&[u8], go: u8, ge: u8, flag: &AlignFlag, f: S) -> Result<AlignResult, Error>
     where
         S: Fn(u8, u8) -> Option<i8>
     {
         let (d_seq, q_seq) = match (d.is_ascii(), q.is_ascii())
         {
             (true, true)   => (d.to_ascii_uppercase(), q.to_ascii_uppercase()),
-            (true, false)  => Err(AlignErr::IllegalChar
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Non-ascii character contain in database sequence".to_string(),
-                })?,
-            (false, true)  => Err(AlignErr::IllegalChar
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Non-ascii character contain in query sequence".to_string(),
-                })?,
-            (false, false) => Err(AlignErr::IllegalChar
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Non-ascii character contain in database/query sequence".to_string(),
-                })?,
+            (true, false)  => Err(Error::IllegalChar)?,
+            (false, true)  => Err(Error::IllegalChar)?,
+            (false, false) => Err(Error::IllegalChar)?,
         };
 
         if let AlignFlag::OptOnly = flag
@@ -1127,7 +1090,7 @@ mod sw_avx2
             let res = match ssw_byte_opt_only(&d_seq, &q_seq, go, ge, &profile_byte)
             {
                 Ok(opt) => opt,
-                Err(AlignErr::OverFlow { .. }) =>
+                Err(Error::OverFlow) =>
                 {
                     let profile_word = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f)?;
                     ssw_word_opt_only(&d_seq, &q_seq, go, ge, &profile_word)?
@@ -1152,7 +1115,7 @@ mod sw_avx2
         let res = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile_byte)
         {
             Ok(res) => res,
-            Err(AlignErr::OverFlow {..}) =>
+            Err(Error::OverFlow) =>
             {
                 let profile_u16 = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f)?;
                 ssw_word(&d_seq, &q_seq, go, ge, 0, &profile_u16)?
@@ -1240,14 +1203,8 @@ mod sw_sse2
 {
     use std::mem::swap;
 
-    use crate::pairwise::AlignErr;
-    use crate::pairwise::AlignEnd;
-    use crate::pairwise::AlignFlag;
-    use crate::pairwise::AlignResult;
-    use crate::sse2::sse2::M128Epu8;
-    use crate::sse2::sse2::M128Epu16;
-    use crate::sse2::sse2::max_epu8;
-    use crate::sse2::sse2::max_epu16;
+    use crate::pairwise::{Error, AlignEnd, AlignFlag, AlignResult};
+    use crate::sse2::sse2::{M128Epu8, M128Epu16, max_epu8, max_epu16};
 
     enum Profile
     {
@@ -1257,18 +1214,13 @@ mod sw_sse2
 
     enum ProfileType { Epu8, Epu16 }
 
-    fn query_profile<S>(d: &[u8], q: &[u8], p: ProfileType, f: S) -> Result<Profile, AlignErr>
+    fn query_profile<S>(d: &[u8], q: &[u8], p: ProfileType, f: S) -> Result<Profile, Error>
     where
         S: Fn(u8, u8) -> Option<i8>
     {
         if !(d.is_ascii() && q.is_ascii())
         {
-            Err( AlignErr::IllegalChar
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Sequence d or q contains non-ascii character".to_string(),
-                } )?
+            Err(Error::IllegalChar)?
         }
 
         let mut bitmap = vec![0; 129];
@@ -1287,12 +1239,7 @@ mod sw_sse2
             {
                 let pair_score = match f(*nn1, *nn2)
                 {
-                    None => Err( AlignErr::GetScoreErr
-                        {
-                            file: file!().to_string(),
-                            line: line!() as usize,
-                            msg: "Can not get pair score with this scoring function".to_string(),
-                        } )?,
+                    None => Err(Error::GetScoreErr)?,
                     Some(score) => score,
                 };
                 bias = min!(bias, pair_score);
@@ -1466,7 +1413,7 @@ mod sw_sse2
         (d_best, q_best)
     }
 
-    fn ssw_byte(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u8, profile: &Profile) -> Result<AlignEnd, AlignErr>
+    fn ssw_byte(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u8, profile: &Profile) -> Result<AlignEnd, Error>
     {
         let go = M128Epu8::fill(go);
         let ge = M128Epu8::fill(ge);
@@ -1549,12 +1496,7 @@ mod sw_sse2
 
                 if tmp >= overflow_threshold
                 {
-                    Err(AlignErr::OverFlow
-                    {
-                        file: file!().to_string(),
-                        line: line!() as usize,
-                        msg: "Score out of u8 range".to_string(),
-                    })?
+                    Err(Error::OverFlow)?
                 }
 
                 if tmp > opt
@@ -1643,7 +1585,7 @@ mod sw_sse2
         Ok(AlignEnd::U8 { var: opt, pos })
     }
 
-    fn ssw_word(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd, AlignErr>
+    fn ssw_word(d: &[u8], q: &[u8], go: u8, ge: u8, terminater: u16, profile: &Profile) -> Result<AlignEnd, Error>
     {
         let go = M128Epu16::fill(go as u16);
         let ge = M128Epu16::fill(ge as u16);
@@ -1726,12 +1668,7 @@ mod sw_sse2
 
                 if tmp >= overflow_threshold
                 {
-                    Err(AlignErr::OverFlow
-                    {
-                        file: file!().to_string(),
-                        line: line!() as usize,
-                        msg: "Score out of u8 range".to_string(),
-                    })?
+                    Err(Error::OverFlow)?
                 }
 
                 if tmp > opt
@@ -1820,7 +1757,7 @@ mod sw_sse2
         Ok(AlignEnd::U16 { var: opt, pos })
     }
 
-    fn ssw_byte_opt_only(d: &[u8], q: &[u8], go: u8, ge: u8, profile: &Profile) -> Result<u32, AlignErr>
+    fn ssw_byte_opt_only(d: &[u8], q: &[u8], go: u8, ge: u8, profile: &Profile) -> Result<u32, Error>
     {
         let go = M128Epu8::fill(go);
         let ge = M128Epu8::fill(ge);
@@ -1899,12 +1836,7 @@ mod sw_sse2
 
             if tmp >= overflow_threshold
             {
-                Err(AlignErr::OverFlow
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Score out of u8 range".to_string(),
-                })?
+                Err(Error::OverFlow)?
             }
 
             *get_mut_unchecked!(max_col_score, i) = tmp;
@@ -1916,7 +1848,7 @@ mod sw_sse2
         Ok(opt as u32)
     }
 
-    fn ssw_word_opt_only(d: &[u8], q: &[u8], go: u8, ge: u8, profile: &Profile) -> Result<u32, AlignErr>
+    fn ssw_word_opt_only(d: &[u8], q: &[u8], go: u8, ge: u8, profile: &Profile) -> Result<u32, Error>
     {
         let go = M128Epu16::fill(go as u16);
         let ge = M128Epu16::fill(ge as u16);
@@ -1995,12 +1927,7 @@ mod sw_sse2
 
             if tmp >= overflow_threshold
             {
-                Err(AlignErr::OverFlow
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Score out of u8 range".to_string(),
-                })?
+                Err(Error::OverFlow)?
             }
 
             *get_mut_unchecked!(max_col_score, i) = tmp;
@@ -2012,31 +1939,16 @@ mod sw_sse2
         Ok(opt as u32)
     }
 
-    pub fn smith_waterman_sse2<S>(d: &[u8], q:&[u8], go: u8, ge: u8, flag: &AlignFlag, f: S) -> Result<AlignResult, AlignErr>
+    pub fn smith_waterman_sse2<S>(d: &[u8], q:&[u8], go: u8, ge: u8, flag: &AlignFlag, f: S) -> Result<AlignResult, Error>
     where
         S: Fn(u8, u8) -> Option<i8>
     {
         let (d_seq, q_seq) = match (d.is_ascii(), q.is_ascii())
         {
             (true, true)   => (d.to_ascii_uppercase(), q.to_ascii_uppercase()),
-            (true, false)  => Err(AlignErr::IllegalChar
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Non-ascii character contain in database sequence".to_string(),
-                })?,
-            (false, true)  => Err(AlignErr::IllegalChar
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Non-ascii character contain in query sequence".to_string(),
-                })?,
-            (false, false) => Err(AlignErr::IllegalChar
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Non-ascii character contain in database/query sequence".to_string(),
-                })?,
+            (true, false)  => Err(Error::IllegalChar)?,
+            (false, true)  => Err(Error::IllegalChar)?,
+            (false, false) => Err(Error::IllegalChar)?,
         };
 
         if let AlignFlag::OptOnly = flag
@@ -2046,7 +1958,7 @@ mod sw_sse2
             let res = match ssw_byte_opt_only(&d_seq, &q_seq, go, ge, &profile_byte)
             {
                 Ok(opt) => opt,
-                Err(AlignErr::OverFlow { .. }) =>
+                Err(Error::OverFlow) =>
                 {
                     let profile_word = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f)?;
                     ssw_word_opt_only(&d_seq, &q_seq, go, ge, &profile_word)?
@@ -2071,7 +1983,7 @@ mod sw_sse2
         let res = match ssw_byte(&d_seq, &q_seq, go, ge, 0, &profile_byte)
         {
             Ok(res) => res,
-            Err(AlignErr::OverFlow {..}) =>
+            Err(Error::OverFlow) =>
             {
                 let profile_u16 = query_profile(&d_seq, &q_seq, ProfileType::Epu16, &f)?;
                 ssw_word(&d_seq, &q_seq, go, ge, 0, &profile_u16)?
@@ -2158,9 +2070,9 @@ mod sw_scalar
 {
     use std::mem::swap;
 
-    use crate::pairwise::{ AlignEnd, AlignErr, AlignFlag, AlignResult };
+    use crate::pairwise::{ AlignEnd, Error, AlignFlag, AlignResult };
 
-    fn sw_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, terminater: u32, score: &S) -> Result<AlignEnd, AlignErr>
+    fn sw_scalar<S>(d: &[u8], q: &[u8], go: u32, ge: u32, terminater: u32, score: &S) -> Result<AlignEnd, Error>
     where
         S: Fn(u8, u8) -> Option<i8>
     {
@@ -2192,13 +2104,7 @@ mod sw_scalar
                     let pair = match score(d[i - 1], q[j - 1])
                     {
                         Some(score) => score,
-                        None => Err(
-                            AlignErr::GetScoreErr
-                            {
-                                file: file!().to_string(),
-                                line: line!() as usize,
-                                msg: "Can not get pair score with this scoring function".to_string()
-                            })?,
+                        None => Err(Error::GetScoreErr)?,
                     };
 
                     let ext = match pair > 0
@@ -2221,12 +2127,7 @@ mod sw_scalar
                     is_overflow = is_overflow + 1;
                     if is_overflow > 1
                     {
-                        Err(AlignErr::OverFlow
-                        {
-                            file: file!().to_string(),
-                            line: line!() as usize,
-                            msg: "Score out of u32 range".to_string(),
-                        })?
+                        Err(Error::OverFlow)?
                     }
                 }
 
@@ -2256,13 +2157,7 @@ mod sw_scalar
                     let pair = match score(d[i-1], q[j-1])
                     {
                         Some(score) => score,
-                        None => Err(
-                            AlignErr::GetScoreErr
-                            {
-                                file: file!().to_string(),
-                                line: line!() as usize,
-                                msg: "Can not get pair score with this scoring function".to_string()
-                            })?,
+                        None => Err(Error::GetScoreErr)?,
                     };
 
                     let ext = match pair > 0
@@ -2459,25 +2354,15 @@ mod sw_scalar
     /// 	// q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
     /// }
     /// ```
-    pub fn smith_waterman_scalar<S>(d: &[u8], q: &[u8], go: u8, ge: u8, flag: &AlignFlag, score: S) -> Result<AlignResult, AlignErr>
+    pub fn smith_waterman_scalar<S>(d: &[u8], q: &[u8], go: u8, ge: u8, flag: &AlignFlag, score: S) -> Result<AlignResult, Error>
     where
         S: Fn(u8, u8) -> Option<i8>
     {
         let (d_seq, q_seq) = match (d.is_ascii(), q.is_ascii())
         {
             (true, true)  => (d.to_ascii_uppercase(), q.to_ascii_uppercase()),
-            (true, false) => Err(AlignErr::IllegalChar
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Non-ascii character contain in database sequence".to_string(),
-                })?,
-            (false, true) => Err(AlignErr::IllegalChar
-                {
-                    file: file!().to_string(),
-                    line: line!() as usize,
-                    msg: "Non-ascii character contain in query sequence".to_string(),
-                })?,
+            (true, false) => Err(Error::IllegalChar)?,
+            (false, true) => Err(Error::IllegalChar)?,
             _ => unreachable!(),
         };
 
@@ -2545,6 +2430,7 @@ mod sw_scalar
         unreachable!()
     }
 }
+
 
 #[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 pub use self::sw_avx2::smith_waterman_avx2;
