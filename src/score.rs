@@ -2,7 +2,7 @@ mod blosum
 {
     /// Wrapping of scoring matrix **blosum62**
     ///
-    /// `blosum62()` is a wrapping of scoring matrix **blosum62**. When function called, if will return a closure like `Fn(u8, u8) -> Option<i8>`.
+    /// `blosum62()` is a wrapping of scoring matrix **blosum62**. When function called, if will return a closure like `Option<i8>`.
     /// The closure which return accept a pair of residue(nucleotide or amino acid) character, then return the pair score.
     /// If residue pair has no corresponding score in scoring matrix, closure will return `None`.
     ///
@@ -70,7 +70,7 @@ mod blosum
 
     /// Wrapping of scoring matrix **blosum50**
     ///
-    /// When blosum50() was called, it will return a closure like `Fn(u8, u8) -> Option<i8>`, this closure accept a letter pairs.
+    /// When blosum50() was called, it will return a closure like `Option<i8>`, this closure accept a letter pairs.
     /// If there is an associated score of letter pairs in the score matrix, the closure will return the score, else closure return `None`
     ///
     /// ### Example
@@ -79,7 +79,7 @@ mod blosum
     ///
     /// fn main()
     /// {
-    ///     // In this case, the type of `blosum50_mat` is `Box<Fn(u8, u8) -> Option<i8>>`.
+    ///     // In this case, the type of `blosum50_mat` is `Option<i8>`.
     ///     let blosum50_mat = blosum50();
     ///
     ///     // In scoring matrix `blosum50`, character pairs "A - H" corresponding to score "-2"
@@ -141,7 +141,7 @@ mod pam
 {
     /// Wrapping of scoring matrix **pam120**
     ///
-    /// When `pam120()` was called, a closure like `Box<Fn(u8, u8) -> Option<i8>>` will be returned.
+    /// When `pam120()` was called, a closure like `Option<i8>` will be returned.
     /// If there is an associated score of letter pairs in the score matrix, the closure will return the score, else closure return `None`
     ///
     /// ### Example

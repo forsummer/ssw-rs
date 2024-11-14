@@ -1,12 +1,13 @@
 use std::time::Instant;
-use clap::{ Parser, ValueEnum };
+use clap::{Parser, ValueEnum};
 use needletail::parse_fastx_file;
 
-use ssw::score::{ pam120, blosum50, blosum62 };
-use ssw::pairwise::{ AlignFlag, smith_waterman_avx2 };
+use ssw::score::{pam120, blosum50, blosum62};
+use ssw::pairwise::{AlignFlag, smith_waterman_avx2};
+
 
 #[derive(ValueEnum, Clone)]
-enum Weight { Pam120, Blosum50, Blosum62 }
+enum Weight {Pam120, Blosum50, Blosum62}
 
 #[derive(Parser)]
 #[clap(version = "0.1")]
@@ -107,8 +108,7 @@ fn main()
     let d_set = fastx_parser(cli_args.db);
     let q_set = fastx_parser(cli_args.query);
 
-    let is_protein = cli_args.is_protein;
-    if !is_protein
+    if !cli_args.is_protein
     {
         let miss_ = -(cli_args._miss.abs());
         let match_ = cli_args._match.abs();
