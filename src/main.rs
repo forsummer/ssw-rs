@@ -145,9 +145,9 @@ fn main()
     {
         let score = match cli_args.weight
         {
-            Weight::Pam120   => pam120(),
-            Weight::Blosum50 => blosum50(),
-            Weight::Blosum62 => blosum62(),
+            Weight::Pam120   => pam120,
+            Weight::Blosum50 => blosum50,
+            Weight::Blosum62 => blosum62,
         };
 
         let flag = match cli_args.print_path

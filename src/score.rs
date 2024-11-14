@@ -22,7 +22,7 @@ mod blosum
     ///     assert_eq!(blosum62_mat(b'A', b'1'), None);
     /// }
     /// ```
-    pub fn blosum62() -> Box<dyn Fn(u8, u8) -> Option<i8>>
+    pub fn blosum62(a: u8, b: u8) -> Option<i8>
     {
         let mat = [[  4, -2,  0, -2, -1, -2,  0, -2, -1, -1, -1, -1, -1, -2,  0, -1, -1, -1,  1,  0,  0,  0, -3, -2, -1,  0, -4 ],
             [ -2,  4, -3,  4,  1, -3, -1,  0, -3, -4,  0, -4, -3,  3, -1, -2,  0, -1,  0, -1, -1, -3, -4, -3,  1, -1, -4 ],
@@ -52,24 +52,20 @@ mod blosum
             [  0, -1, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -2, -1, -1,  0,  0, -1, -1, -2, -1, -1, -1, -4 ],
             [ -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4,  1 ]];
 
-        let score = move |r1: u8, r2: u8|
+        let i = match a.to_ascii_uppercase()
         {
-            let i = match r1.to_ascii_uppercase()
-            {
-                b'*' => 26 as usize,
-                r if (65..=90).contains(&r) => (r - 65) as usize,
-                _ => return None,
-            };
-
-            let j = match r2.to_ascii_uppercase()
-            {
-                b'*' => 26 as usize,
-                r if (65..=90).contains(&r) => (r - 65) as usize,
-                _ => return None,
-            };
-            Some(mat[i][j])
+            b'*' => 26 as usize,
+            r if (65..=90).contains(&r) => (r - 65) as usize,
+            _ => return None,
         };
-        Box::new(score)
+
+        let j = match b.to_ascii_uppercase()
+        {
+            b'*' => 26 as usize,
+            r if (65..=90).contains(&r) => (r - 65) as usize,
+            _ => return None,
+        };
+        Some(mat[i][j])
     }
 
     /// Wrapping of scoring matrix **blosum50**
@@ -94,7 +90,7 @@ mod blosum
     ///     assert_eq!(blosum50_mat(b'A', b'1'), None);
     /// }
     /// ```
-    pub fn blosum50() -> Box<dyn Fn(u8, u8) -> Option<i8>>
+    pub fn blosum50(a: u8, b: u8) -> Option<i8>
     {
         let mat = [[  5, -2, -1, -2, -1, -3,  0, -2, -1,  0, -1, -2, -1, -1,  0, -1, -1, -2,  1,  0,  0,  0, -3, -1, -2, -1, -5 ],
             [ -2,  5, -3,  5,  1, -4, -1,  0, -4,  0,  0, -4, -3,  4,  0, -2,  0, -1,  0,  0,  0, -4, -5, -1, -3,  2, -5 ],
@@ -124,24 +120,20 @@ mod blosum
             [ -1,  2, -3,  1,  5, -4, -2,  0, -3,  0,  1, -3, -1,  0,  0, -1,  4,  0,  0, -1,  0, -3, -2, -1, -2,  5, -5 ],
             [ -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5,  1 ]];
 
-        let score = move |r1: u8, r2: u8|
+        let i = match a.to_ascii_uppercase()
         {
-            let i = match r1.to_ascii_uppercase()
-            {
-                b'*' => 26,
-                r if (65..=90).contains(&r) => (r - 65) as usize,
-                _ => return None,
-            };
-
-            let j = match r2.to_ascii_uppercase()
-            {
-                b'*' => 26,
-                r if (65..=90).contains(&r) => (r - 65) as usize,
-                _ => return None,
-            };
-            Some(mat[i][j])
+            b'*' => 26,
+            r if (65..=90).contains(&r) => (r - 65) as usize,
+            _ => return None,
         };
-        Box::new(score)
+
+        let j = match b.to_ascii_uppercase()
+        {
+            b'*' => 26,
+            r if (65..=90).contains(&r) => (r - 65) as usize,
+            _ => return None,
+        };
+        Some(mat[i][j])
     }
 }
 
@@ -170,7 +162,7 @@ mod pam
     /// }
     /// ```
 
-    pub fn pam120() -> Box<dyn Fn(u8, u8) -> Option<i8>>
+    pub fn pam120(a: u8, b: u8) -> Option<i8>
     {
         let mat = [[  3,  0, -3,  0,  0, -4,  1, -3, -1, -2, -2, -3, -2, -1, -1,  1, -1, -3,  1,  1, -1,  0, -7, -4, -1, -1, -8 ],
             [  0,  4, -6,  4,  3, -5,  0,  1, -3, -4,  0, -4, -4,  3, -1, -2,  0, -2,  0,  0, -1, -3, -6, -3,  2, -1, -8 ],
@@ -200,24 +192,20 @@ mod pam
             [ -1, -1, -4, -2, -1, -3, -2, -2, -1, -2, -2, -2, -2, -1, -2, -2, -1, -2, -1, -1, -2, -1, -5, -3, -1, -2, -8 ],
             [ -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8, -8,  1 ]];
 
-        let score = move |r1: u8, r2: u8|
+        let i = match a.to_ascii_uppercase()
         {
-            let i = match r1.to_ascii_uppercase()
-            {
-                b'*' => 26,
-                r if (65..=90).contains(&r) => (r - 65) as usize,
-                _ => return None,
-            };
-
-            let j = match r2.to_ascii_uppercase()
-            {
-                b'*' => 26,
-                r if (65..=90).contains(&r) => (r - 65) as usize,
-                _ => return None,
-            };
-            Some(mat[i][j])
+            b'*' => 26,
+            r if (65..=90).contains(&r) => (r - 65) as usize,
+            _ => return None,
         };
-        Box::new(score)
+
+        let j = match b.to_ascii_uppercase()
+        {
+            b'*' => 26,
+            r if (65..=90).contains(&r) => (r - 65) as usize,
+            _ => return None,
+        };
+        Some(mat[i][j])
     }
 }
 
