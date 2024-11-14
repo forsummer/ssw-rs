@@ -133,11 +133,11 @@ fn main()
             }
         }
 
-        for res in results.iter()
+        for (d_id, q_id, result) in results.iter()
         {
-            println!("d_id: {}", res.0);
-            println!("q_id: {}", res.1);
-            println!("{}", res.2);
+            println!("d_id: {}", d_id);
+            println!("q_id: {}", q_id);
+            println!("{}", result);
         }
         println!("time-cost: {}s", time_cost_total);
     }
@@ -170,11 +170,11 @@ fn main()
             }
         }
 
-        for res in results.iter()
+        for (d_id, q_id, result) in results.iter()
         {
-            println!("d_id: {}", res.0);
-            println!("q_id: {}", res.1);
-            println!("{}", res.2);
+            println!("d_id: {}", d_id);
+            println!("q_id: {}", q_id);
+            println!("{}", result);
         }
         println!("time-cost: {}s", time_cost_total);
     }
