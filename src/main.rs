@@ -11,7 +11,7 @@ enum Weight {Pam120, Blosum50, Blosum62}
 
 #[derive(Parser)]
 #[clap(version = "0.1")]
-#[clap(about = "Alignment nucleotide seq by smith-waterman algorithm")]
+#[clap(about = "Alignment seq by smith-waterman algorithm")]
 struct CliArgs
 {
     #[clap(name = "miss", long, short = 'u', display_order = 1)]
@@ -54,11 +54,11 @@ struct CliArgs
     pub weight: Weight,
 
     #[clap(name = "db")]
-    #[clap(help = "Database sequence file path(fasta/fastq)")]
+    #[clap(help = "Database sequence file path")]
     pub db: String,
 
     #[clap(name = "query")]
-    #[clap(help = "Query sequence file path(fasta/fastq)")]
+    #[clap(help = "Query sequence file path")]
     pub query: String
 }
 
