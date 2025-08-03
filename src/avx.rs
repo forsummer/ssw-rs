@@ -68,8 +68,15 @@ pub mod avx2
             {
                 panic!("The capacity of iter should equal to 32 bytes");
             }
-            let ptr_rev_v = v.iter().rev().copied().collect::<Vec<u8>>().as_ptr();
-            unsafe { M256Epu8(*transmute::<*const u8, *const __m256i>(ptr_rev_v)) }
+            let ptr_rev_v = v.iter()
+                .rev()
+                .copied()
+                .collect::<Vec<u8>>();
+            unsafe {
+                M256Epu8(*transmute::<*const u8, *const __m256i>(
+                    ptr_rev_v.as_ptr())
+                )
+            }
         }
     }
 
@@ -83,8 +90,15 @@ pub mod avx2
             {
                 panic!("The capacity of iter should equal to 32 bytes")
             }
-            let ptr_rev_v = v.iter().rev().copied().collect::<Vec<u16>>().as_ptr();
-            unsafe { M256Epu16(*transmute::<*const u16, *const __m256i>(ptr_rev_v)) }
+            let ptr_rev_v = v.iter()
+                .rev()
+                .copied()
+                .collect::<Vec<u16>>();
+            unsafe {
+                M256Epu16(*transmute::<*const u16, *const __m256i>(
+                    ptr_rev_v.as_ptr()
+                ))
+            }
         }
     }
 
