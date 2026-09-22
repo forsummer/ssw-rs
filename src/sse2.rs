@@ -428,7 +428,7 @@ mod test_m128_epu8 {
 }
 
 #[cfg(test)]
-#[cfg(all(target_feature = "sse2"))]
+#[cfg(target_feature = "sse2")]
 mod test_m128_epu16 {
     use super::sse2::max_epu16;
     use super::sse2::M128Epu16;

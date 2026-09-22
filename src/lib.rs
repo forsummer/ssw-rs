@@ -49,10 +49,10 @@
 //!     // the printed results are as follows:
 //!     //
 //!     // optimal_alignment_score: 216, d_start 1, d_end: 33, q_start 1, q_end: 30
-//! 	//
-//! 	// d_best: 1 CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA 33
-//!   	//           ||||||||||||*|||||||||||   ||||||
-//! 	// q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
+//!     //
+//!     // d_best: 1 CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA 33
+//!     //           ||||||||||||*|||||||||||   ||||||
+//!     // q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
 //! }
 //! ```
 //!
@@ -83,27 +83,29 @@
 //!     // the printed results are as follows:
 //!     //
 //!     // optimal_alignment_score: 216, d_start 1, d_end: 33, q_start 1, q_end: 30
-//! 	//
-//! 	// d_best: 1 CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA 33
-//!   	//           ||||||||||||*|||||||||||   ||||||
-//! 	// q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
+//!     //
+//!     // d_best: 1 CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA 33
+//!     //           ||||||||||||*|||||||||||   ||||||
+//!     // q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
 //! }
 //! ```
 
 #[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 mod avx;
 
-#[cfg(all(target_feature = "sse2"))]
+#[cfg(target_feature = "sse2")]
 mod sse2;
 
 /// Provide wrapping of scoring matrix, such as **blosum50**, **blosum62** and **pam120**.
 /// (The scoring matrix is wrapped into a closure like `Fn(u8, u8) -> Option<i8>`)
 /// When those function be called, it will return a closure like `Box<Fn(u8, u8) -> Option<i8>>`.
-/// The closure accept a character pairs(nucleotide or amino acid) and return corresponding score in scoring matrix.
+/// The closure accept a character pairs(nucleotide or amino acid) and return corresponding
+/// score in scoring matrix.
 /// If character pairs has no corresponding score in scoring matrix, closure will return `None`.
 pub mod score;
 
-/// Contain striped-smith-waterman implementation accelerated by **AVX2** and a serial implementation.
+/// Contain striped-smith-waterman implementation accelerated by **AVX2** and a serial
+/// implementation.
 pub mod pairwise;
 
 /// Defines several types of errors that can occur when running alignment

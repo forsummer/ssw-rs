@@ -77,9 +77,13 @@ enum AlignEnd {
 // }
 
 /// Store alignment result of smith-waterman.
-/// If only find the best alignment endpoint with [`smith_waterman_avx2`](fn@crate::pairwise::smith_waterman_avx2),
-/// then `AlignResult` only contain the **end position** of **best alignment** and **optimal alignment score**.
-/// Otherwise, `AlignResult` will also contain **start** and **end** position of best aignment on **database sequence** and **query sequence** and **best tracing back path** on sequence.
+/// If only find the best alignment endpoint with
+/// [`smith_waterman_avx2`](fn@crate::pairwise::smith_waterman_avx2),
+/// then `AlignResult` only contain the **end position** of **best alignment** and
+/// **optimal alignment score**.
+/// Otherwise, `AlignResult` will also contain **start** and **end** position of best
+/// aignment on **database sequence** and **query sequence** and **best tracing back path**
+/// on sequence.
 ///
 /// ### Fields
 /// * `d_start`: Best alignment start position on **database sequence**
@@ -111,9 +115,12 @@ pub struct AlignResult {
     /// **Optimal score** of pairwise alignment
     pub opt: u32,
 
-    // If `flag` equal to `AlignFlag::End`, `AlignResult` will only contain optimal score and end position of alignment.
-    // If `flag` equal to `AlignFlag::Path`, `AlignResult` will also contain start position and best trace path of alignment.
-    // `std::fmt::Display` will determine how to print the `AlignResult` based on the value of the `flag` variable.
+    // If `flag` equal to `AlignFlag::End`, `AlignResult` will only contain optimal score and
+    // end position of alignment.
+    // If `flag` equal to `AlignFlag::Path`, `AlignResult` will also contain start position and
+    // best trace path of alignment.
+    // `std::fmt::Display` will determine how to print the `AlignResult` based on the value of
+    // the `flag` variable.
     flag: AlignFlag,
 }
 
@@ -954,23 +961,31 @@ mod sw_avx2 {
     ///
     /// ### Function's working mode
     /// * Find alignment **end position** and calculating **optimal score** only.
-    /// * Find alignment **start/end position**, calculating **optimal score** and find **best trace path**.
+    /// * Find alignment **start/end position**, calculating **optimal score** and find
+    ///   **best trace path**.
     ///
     /// ### Select the working mode
-    /// function's working mode depend on the values of parameter `flag` (type: [`AlignFlag`](enum@crate::pairwise::AlignFlag))
-    /// * `flag` equal to `AlignFlag::End`, function will find alignment **endpoint** and **optimal score** only.
-    /// * `flag` equal to `AlignFlag::Path`, the function will find **startpoint/endpoint** of alignment, and **optimal score** and **best trace back path**.
+    /// function's working mode depend on the values of parameter `flag`
+    /// (type: [`AlignFlag`](enum@crate::pairwise::AlignFlag))
+    /// * `flag` equal to `AlignFlag::End`, function will find alignment **endpoint** and
+    ///   **optimal score** only.
+    /// * `flag` equal to `AlignFlag::Path`, the function will find **startpoint/endpoint** of
+    ///   alignment, and **optimal score** and **best trace back path**.
     ///
     /// ### Scoring Rules
     /// As we all know, Smith-waterman algorithm evaluates the similarity of two sequences
     /// based on a score matrix, such as **blosum50**, **blosum62** or a user-defined score rule.
-    /// Thus, `ssw` library provides [`blosum50`](fn@crate::score::blosum50), [`blosum62`](fn@crate::score::blosum62),
+    /// Thus, `ssw` library provides [`blosum50`](fn@crate::score::blosum50),
+    /// [`blosum62`](fn@crate::score::blosum62),
     /// [`pam120`](fn@crate::score::pam120) scoring matrices wrapped in closures.
-    /// Therefore, if you want to use custom scoring rule, just wrap it in closure like `Fn(u8, u8) -> Option<i8>` and pass it to `smith_waterman_avx2` by parameter `f`.
+    /// Therefore, if you want to use custom scoring rule, just wrap it in closure like
+    /// `Fn(u8, u8) -> Option<i8>` and pass it to `smith_waterman_avx2` by parameter `f`.
     ///
     /// ### Error Handle
-    /// Several errors that can occur during smith-waterman-avx2 execution are wrapping in [`AlignErr`](enum@crate::pairwise::AlignErr).
-    /// When an error occurs, the function returns `Err(AignErr)`, so the function should be called with error handling.
+    /// Several errors that can occur during smith-waterman-avx2 execution are wrapping in
+    /// [`AlignErr`](enum@crate::pairwise::AlignErr).
+    /// When an error occurs, the function returns `Err(AignErr)`, so the function should be
+    /// called with error handling.
     ///
     /// ### Example1: Find endpoint and optimal score only
     /// ```rust
@@ -1186,7 +1201,7 @@ mod sw_avx2 {
     }
 }
 
-#[cfg(all(target_feature = "sse2"))]
+#[cfg(target_feature = "sse2")]
 mod sw_sse2 {
     use std::mem::swap;
 
@@ -2239,7 +2254,8 @@ mod sw_scalar {
         (d_best, q_best)
     }
 
-    /// Serial implementation of smith-waterman algorithm, **much slower** than [`smith_waterman_avx2`](fn@crate::pairwise::smith_waterman_avx2)
+    /// Serial implementation of smith-waterman algorithm, **much slower** than
+    /// [`smith_waterman_avx2`](fn@crate::pairwise::smith_waterman_avx2)
     ///
     /// Why do we need a serial implementation?
     /// Because the maximum computational accuracy of `smith_waterman_avx2` is u16[0-65535],
@@ -2311,10 +2327,10 @@ mod sw_scalar {
     ///     // the printed results are as follows:
     ///     //
     ///     // optimal_alignment_score: 216, d_start 1, d_end: 33, q_start 1, q_end: 30
-    /// 	//
-    /// 	// d_best: 1 CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA 33
-    ///   	//           ||||||||||||*|||||||||||   ||||||
-    /// 	// q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
+    ///         //
+    ///         // d_best: 1 CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA 33
+    ///         //           ||||||||||||*|||||||||||   ||||||
+    ///         // q_best: 1 CLKQTQMRTDHAMCGDFWEESHHH---FTLCIA 30
     /// }
     /// ```
     pub fn smith_waterman_scalar<S>(
@@ -2398,7 +2414,7 @@ mod sw_scalar {
 #[cfg(all(target_feature = "avx", target_feature = "avx2"))]
 pub use self::sw_avx2::smith_waterman_avx2;
 
-#[cfg(all(target_feature = "sse2"))]
+#[cfg(target_feature = "sse2")]
 pub use self::sw_sse2::smith_waterman_sse2;
 
 pub use self::sw_scalar::smith_waterman_scalar;

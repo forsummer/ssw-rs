@@ -1,8 +1,10 @@
 mod blosum {
     /// Wrapping of scoring matrix **blosum62**
     ///
-    /// `blosum62()` is a wrapping of scoring matrix **blosum62**. When function called, if will return a closure like `Option<i8>`.
-    /// The closure which return accept a pair of residue(nucleotide or amino acid) character, then return the pair score.
+    /// `blosum62()` is a wrapping of scoring matrix **blosum62**. When function called, if will
+    /// return a closure like `Option<i8>`.
+    /// The closure which return accept a pair of residue(nucleotide or amino acid) character,
+    /// then return the pair score.
     /// If residue pair has no corresponding score in scoring matrix, closure will return `None`.
     ///
     /// ### Example
@@ -14,7 +16,8 @@ mod blosum {
     ///     // In this case, type of `blosum62_mat` is `Fn(u8, u8) -> Option<i8>`
     ///     let blosum62_mat = blosum62();
     ///
-    ///     // Character pairs "A - H" corresponding to score "-2", so the closure return `Some(-2)`.
+    ///     // Character pairs "A - H" corresponding to score "-2", so the closure return
+    ///     // `Some(-2)`.
     ///     assert_eq!(blosum62_mat(b'A', b'H'), Some(-2));
     ///
     ///     // Character pair "A-1" has no corresponding score, so the closure return `None`.
@@ -149,8 +152,10 @@ mod blosum {
 
     /// Wrapping of scoring matrix **blosum50**
     ///
-    /// When blosum50() was called, it will return a closure like `Option<i8>`, this closure accept a letter pairs.
-    /// If there is an associated score of letter pairs in the score matrix, the closure will return the score, else closure return `None`
+    /// When blosum50() was called, it will return a closure like `Option<i8>`, this closure
+    /// accept a letter pairs.
+    /// If there is an associated score of letter pairs in the score matrix, the closure will
+    /// return the score, else closure return `None`
     ///
     /// ### Example
     /// ```rust
@@ -165,7 +170,8 @@ mod blosum {
     ///     // So, the closure return `Some(-2)`.
     ///     assert_eq!(blosum50_mat(b'A', b'H'), Some(-2));
     ///
-    ///     // Character pairs "A - 1" has no correspond score in scoring matrix, so the closure return `None`.
+    ///     // Character pairs "A - 1" has no correspond score in scoring matrix, so the closure
+    ///     // return `None`.
     ///     assert_eq!(blosum50_mat(b'A', b'1'), None);
     /// }
     /// ```
@@ -297,7 +303,8 @@ mod pam {
     /// Wrapping of scoring matrix **pam120**
     ///
     /// When `pam120()` was called, a closure like `Option<i8>` will be returned.
-    /// If there is an associated score of letter pairs in the score matrix, the closure will return the score, else closure return `None`
+    /// If there is an associated score of letter pairs in the score matrix, the closure will
+    /// return the score, else closure return `None`
     ///
     /// ### Example
     /// ```rust
@@ -312,11 +319,11 @@ mod pam {
     ///     // So, the closure return `Some(-3)`.
     ///     assert_eq!(pam120_mat(b'A', b'H'), Some(-3));
     ///
-    ///     // Character pairs "A - 1" has not corresponding score in `pam120`, so the closure return 'None'.
+    ///     // Character pairs "A - 1" has not corresponding score in `pam120`, so the closure
+    ///     // return 'None'.
     ///     assert_eq!(pam120_mat(b'A', b'1'), None);
     /// }
     /// ```
-
     pub fn pam120(a: u8, b: u8) -> Option<i8> {
         let mat = [
             [
