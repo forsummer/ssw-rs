@@ -1,11 +1,11 @@
 #[cfg(target_feature = "sse2")]
-pub mod sse2 {
+pub mod simd {
     use std::arch::x86_64::{
         __m128i, _mm_adds_epu16, _mm_adds_epu8, _mm_cmpeq_epi16, _mm_cmpeq_epi8, _mm_load_si128,
         _mm_max_epi16, _mm_max_epu8, _mm_movemask_epi8, _mm_set1_epi16, _mm_set1_epi8,
         _mm_slli_si128, _mm_subs_epu16, _mm_subs_epu8, _mm_xor_si128,
     };
-    use std::mem::{size_of, transmute};
+    use std::mem::transmute;
 
     #[derive(Clone, Copy)]
     pub struct M128Epu8(__m128i);
@@ -16,7 +16,7 @@ pub mod sse2 {
     impl std::convert::From<&[u8]> for M128Epu8 {
         #[inline]
         fn from(s: &[u8]) -> Self {
-            if s.len() * size_of::<u8>() != 16 {
+            if std::mem::size_of_val(s) != 16 {
                 panic!("The capacity of slice should equal to 16 bytes");
             }
             let ptr = unsafe { transmute::<*const u8, *const __m128i>(s.as_ptr()) };
@@ -28,7 +28,7 @@ pub mod sse2 {
     impl std::convert::From<&[u16]> for M128Epu16 {
         #[inline]
         fn from(s: &[u16]) -> Self {
-            if s.len() * size_of::<u16>() != 16 {
+            if std::mem::size_of_val(s) != 16 {
                 panic!("The capacity of slice should equal to 16 bytes");
             }
             let ptr = unsafe { transmute::<*const u16, *const __m128i>(s.as_ptr()) };
@@ -84,7 +84,7 @@ pub mod sse2 {
             let mut step = rhs;
             while step > 0 {
                 shift_left_byte(&mut v);
-                step = step - 1;
+                step -= 1;
             }
             M128Epu8(v)
         }
@@ -101,7 +101,7 @@ pub mod sse2 {
             let mut step = rhs;
             while step > 0 {
                 shift_left_word(&mut v);
-                step = step - 1;
+                step -= 1;
             }
             M128Epu16(v)
         }
@@ -250,8 +250,8 @@ pub mod sse2 {
 mod test_m128_epu8 {
     use std::mem::transmute;
 
-    use super::sse2::max_epu8;
-    use super::sse2::M128Epu8;
+    use super::simd::max_epu8;
+    use super::simd::M128Epu8;
 
     use std::arch::x86_64::__m128i;
     use std::arch::x86_64::_mm_setzero_si128;
@@ -430,8 +430,8 @@ mod test_m128_epu8 {
 #[cfg(test)]
 #[cfg(target_feature = "sse2")]
 mod test_m128_epu16 {
-    use super::sse2::max_epu16;
-    use super::sse2::M128Epu16;
+    use super::simd::max_epu16;
+    use super::simd::M128Epu16;
     use std::mem::transmute;
 
     use std::arch::x86_64::__m128i;

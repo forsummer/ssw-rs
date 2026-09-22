@@ -17,7 +17,7 @@ pub mod avx2 {
 
     impl std::convert::From<&[u8]> for M256Epu8 {
         fn from(s: &[u8]) -> Self {
-            if s.len() * size_of::<u8>() != 32 {
+            if std::mem::size_of_val(s) != 32 {
                 panic!("The capacity of slice should equal to 32 bytes")
             }
             let mut v = [0; 32];
@@ -29,7 +29,7 @@ pub mod avx2 {
     impl std::convert::From<&[u16]> for M256Epu16 {
         #[inline]
         fn from(s: &[u16]) -> Self {
-            if s.len() * size_of::<u16>() != 32 {
+            if std::mem::size_of_val(s) != 32 {
                 panic!("The capacity of slice should equal to 32 bytes")
             }
             let mut v: [u16; 16] = [0; 16];
@@ -664,27 +664,27 @@ mod test_m256_epu16 {
         let a = M256Epu16(unsafe {
             _mm256_set_epi16(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
         });
-        assert_eq!(a.contains(1), true);
-        assert_eq!(a.contains(2), true);
-        assert_eq!(a.contains(3), true);
-        assert_eq!(a.contains(4), true);
-        assert_eq!(a.contains(5), true);
-        assert_eq!(a.contains(6), true);
-        assert_eq!(a.contains(7), true);
-        assert_eq!(a.contains(8), true);
-        assert_eq!(a.contains(9), true);
-        assert_eq!(a.contains(10), true);
-        assert_eq!(a.contains(11), true);
-        assert_eq!(a.contains(12), true);
-        assert_eq!(a.contains(13), true);
-        assert_eq!(a.contains(14), true);
-        assert_eq!(a.contains(15), true);
-        assert_eq!(a.contains(16), true);
-        assert_eq!(a.contains(17), false);
-        assert_eq!(a.contains(18), false);
-        assert_eq!(a.contains(19), false);
-        assert_eq!(a.contains(20), false);
-        assert_eq!(a.contains(21), false);
+        assert!(a.contains(1));
+        assert!(a.contains(2));
+        assert!(a.contains(3));
+        assert!(a.contains(4));
+        assert!(a.contains(5));
+        assert!(a.contains(6));
+        assert!(a.contains(7));
+        assert!(a.contains(8));
+        assert!(a.contains(9));
+        assert!(a.contains(10));
+        assert!(a.contains(11));
+        assert!(a.contains(12));
+        assert!(a.contains(13));
+        assert!(a.contains(14));
+        assert!(a.contains(15));
+        assert!(a.contains(16));
+        assert!(!a.contains(17));
+        assert!(!a.contains(18));
+        assert!(!a.contains(19));
+        assert!(!a.contains(20));
+        assert!(!a.contains(21));
     }
 }
 
@@ -916,8 +916,8 @@ mod test_m256_epu8 {
                 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1,
             ))
         };
-        assert_eq!(a.contains(32), true);
-        assert_eq!(a.contains(33), false);
+        assert!(a.contains(32));
+        assert!(!a.contains(33));
     }
 
     #[test]

@@ -87,14 +87,12 @@ fn fastx_parser<P>(path: P) -> Vec<Seq>
 where
     P: AsRef<std::path::Path>,
 {
-    let mut reader =
-        parse_fastx_file(path).map_or_else(|err| panic!("{}", err.msg), |reader| reader);
+    let mut reader = parse_fastx_file(path).unwrap_or_else(|err| panic!("{}", err.msg));
 
     let mut seq_set = Vec::new();
     while let Some(item) = reader.next() {
-        let record = item.map_or_else(|err| panic!("{}", err.msg), |r| r);
-        let id =
-            String::from_utf8(record.id().to_vec()).map_or_else(|err| panic!("{}", err), |s| s);
+        let record = item.unwrap_or_else(|err| panic!("{}", err.msg));
+        let id = String::from_utf8(record.id().to_vec()).unwrap_or_else(|err| panic!("{}", err));
         let seq = record.seq().to_vec();
         seq_set.push(Seq { id, seq });
     }
@@ -126,7 +124,7 @@ fn main() {
                 let tick = Instant::now();
                 let res = smith_waterman_avx2(&d.seq, &q.seq, go, ge, &flag, score)
                     .expect("Overflow, d/q sequence is too long");
-                time_cost_total = time_cost_total + tick.elapsed().as_secs_f64();
+                time_cost_total += tick.elapsed().as_secs_f64();
                 results.push((&d.id, &q.id, res));
             }
         }
@@ -154,9 +152,9 @@ fn main() {
         for d in d_set.iter() {
             for q in q_set.iter() {
                 let tick = Instant::now();
-                let res = smith_waterman_avx2(&d.seq, &q.seq, go, ge, &flag, &score)
+                let res = smith_waterman_avx2(&d.seq, &q.seq, go, ge, &flag, score)
                     .expect("Overflow, d/q sequence is too long");
-                time_cost_total = time_cost_total + tick.elapsed().as_secs_f64();
+                time_cost_total += tick.elapsed().as_secs_f64();
                 results.push((&d.id, &q.id, res));
             }
         }

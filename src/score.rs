@@ -137,13 +137,13 @@ mod blosum {
         ];
 
         let i = match a.to_ascii_uppercase() {
-            b'*' => 26 as usize,
+            b'*' => 26_usize,
             r if (65..=90).contains(&r) => (r - 65) as usize,
             _ => return None,
         };
 
         let j = match b.to_ascii_uppercase() {
-            b'*' => 26 as usize,
+            b'*' => 26_usize,
             r if (65..=90).contains(&r) => (r - 65) as usize,
             _ => return None,
         };

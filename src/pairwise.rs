@@ -293,7 +293,7 @@ mod sw_avx2 {
             ProfileType::Epu16 => 16,
         };
 
-        let seg_num = (q.len() + seg_len - 1) / seg_len;
+        let seg_num = q.len().div_ceil(seg_len);
 
         let mut seg_set = vec![Vec::new(); seg_num];
 
@@ -412,22 +412,22 @@ mod sw_avx2 {
             if direction[i][j] == 1 {
                 d_best.insert(0, d[i - 1]);
                 q_best.insert(0, b'-');
-                i = i - 1;
+                i -= 1;
                 continue;
             }
 
             if direction[i][j] == 2 {
                 d_best.insert(0, b'-');
                 q_best.insert(0, q[j - 1]);
-                j = j - 1;
+                j -= 1;
                 continue;
             }
 
             if direction[i][j] == 3 {
                 d_best.insert(0, d[i - 1]);
                 q_best.insert(0, q[j - 1]);
-                i = i - 1;
-                j = j - 1;
+                i -= 1;
+                j -= 1;
                 continue;
             }
         }
@@ -452,7 +452,7 @@ mod sw_avx2 {
 
         let overflow_threshold = u8::MAX.saturating_sub(bias);
 
-        let seg_num = (q.len() + 31) / 32;
+        let seg_num = q.len().div_ceil(32);
         let bias = M256Epu8::fill(bias);
         let mut f = M256Epu8::fill(0);
         let mut e_store = vec![M256Epu8::fill(0); seg_num];
@@ -508,7 +508,7 @@ mod sw_avx2 {
                     f = f - ge;
                     max = max_epu8(max, h_buffer_correct);
 
-                    j = j + 1;
+                    j += 1;
                     if j >= seg_num {
                         f = f << 1;
                         j = 0;
@@ -577,7 +577,7 @@ mod sw_avx2 {
 
                     f = f - ge;
 
-                    j = j + 1;
+                    j += 1;
                     if j >= seg_num {
                         f = f << 1;
                         j = 0;
@@ -615,7 +615,7 @@ mod sw_avx2 {
         };
 
         let overflow_threshold = u16::MAX.saturating_sub(bias);
-        let seg_num = (q.len() + 15) / 16;
+        let seg_num = q.len().div_ceil(16);
         let bias = M256Epu16::fill(bias);
 
         let mut f = M256Epu16::fill(0);
@@ -672,7 +672,7 @@ mod sw_avx2 {
                     f = f - ge;
                     max = max_epu16(max, h_buffer_correct);
 
-                    j = j + 1;
+                    j += 1;
                     if j >= seg_num {
                         f = f << 1;
                         j = 0;
@@ -738,7 +738,7 @@ mod sw_avx2 {
 
                     f = f - ge;
 
-                    j = j + 1;
+                    j += 1;
                     if j >= seg_num {
                         f = f << 1;
                         j = 0;
@@ -776,7 +776,7 @@ mod sw_avx2 {
 
         let overflow_threshold = u8::MAX.saturating_sub(bias);
 
-        let seg_num = (q.len() + 31) / 32;
+        let seg_num = q.len().div_ceil(32);
         let bias = M256Epu8::fill(bias);
         let mut f = M256Epu8::fill(0);
         let mut e_store = vec![M256Epu8::fill(0); seg_num];
@@ -830,7 +830,7 @@ mod sw_avx2 {
                 f = f - ge;
                 max = max_epu8(max, h_buffer_correct);
 
-                j = j + 1;
+                j += 1;
                 if j >= seg_num {
                     f = f << 1;
                     j = 0;
@@ -870,7 +870,7 @@ mod sw_avx2 {
         };
 
         let overflow_threshold = u16::MAX.saturating_sub(bias);
-        let seg_num = (q.len() + 15) / 16;
+        let seg_num = q.len().div_ceil(16);
         let bias = M256Epu16::fill(bias);
 
         let mut f = M256Epu16::fill(0);
@@ -925,7 +925,7 @@ mod sw_avx2 {
                 f = f - ge;
                 max = max_epu16(max, h_buffer_correct);
 
-                j = j + 1;
+                j += 1;
                 if j >= seg_num {
                     f = f << 1;
                     j = 0;
@@ -1206,7 +1206,7 @@ mod sw_sse2 {
     use std::mem::swap;
 
     use crate::pairwise::{AlignEnd, AlignFlag, AlignResult};
-    use crate::sse2::sse2::{max_epu16, max_epu8, M128Epu16, M128Epu8};
+    use crate::sse2::simd::{max_epu16, max_epu8, M128Epu16, M128Epu8};
     use crate::Error;
 
     enum Profile {
@@ -1268,7 +1268,7 @@ mod sw_sse2 {
             ProfileType::Epu16 => 8,
         };
 
-        let seg_num = (q.len() + seg_len - 1) / seg_len;
+        let seg_num = q.len().div_ceil(seg_len);
 
         let mut seg_set = vec![Vec::new(); seg_num];
 
@@ -1393,22 +1393,22 @@ mod sw_sse2 {
             if direction[i][j] == 1 {
                 d_best.insert(0, d[i - 1]);
                 q_best.insert(0, b'-');
-                i = i - 1;
+                i -= 1;
                 continue;
             }
 
             if direction[i][j] == 2 {
                 d_best.insert(0, b'-');
                 q_best.insert(0, q[j - 1]);
-                j = j - 1;
+                j -= 1;
                 continue;
             }
 
             if direction[i][j] == 3 {
                 d_best.insert(0, d[i - 1]);
                 q_best.insert(0, q[j - 1]);
-                i = i - 1;
-                j = j - 1;
+                i -= 1;
+                j -= 1;
                 continue;
             }
         }
@@ -1433,7 +1433,7 @@ mod sw_sse2 {
 
         let overflow_threshold = u8::MAX.saturating_sub(bias);
 
-        let seg_num = (q.len() + 15) / 16;
+        let seg_num = q.len().div_ceil(16);
 
         let bias = M128Epu8::fill(bias);
         let mut f = M128Epu8::fill(0);
@@ -1486,7 +1486,7 @@ mod sw_sse2 {
 
                     f = f - ge;
 
-                    j = j + 1;
+                    j += 1;
                     if j >= seg_num {
                         f = f << 1;
                         j = 0;
@@ -1554,7 +1554,7 @@ mod sw_sse2 {
 
                     f = f - ge;
 
-                    j = j + 1;
+                    j += 1;
                     if j >= seg_num {
                         f = f << 1;
                         j = 0;
@@ -1593,7 +1593,7 @@ mod sw_sse2 {
 
         let overflow_threshold = u16::MAX.saturating_sub(bias);
 
-        let seg_num = (q.len() + 7) / 8;
+        let seg_num = q.len().div_ceil(8);
 
         let bias = M128Epu16::fill(bias);
         let mut f = M128Epu16::fill(0);
@@ -1646,7 +1646,7 @@ mod sw_sse2 {
 
                     f = f - ge;
 
-                    j = j + 1;
+                    j += 1;
                     if j >= seg_num {
                         f = f << 1;
                         j = 0;
@@ -1714,7 +1714,7 @@ mod sw_sse2 {
 
                     f = f - ge;
 
-                    j = j + 1;
+                    j += 1;
                     if j >= seg_num {
                         f = f << 1;
                         j = 0;
@@ -1752,7 +1752,7 @@ mod sw_sse2 {
 
         let overflow_threshold = u8::MAX.saturating_sub(bias);
 
-        let seg_num = (q.len() + 15) / 16;
+        let seg_num = q.len().div_ceil(16);
 
         let bias = M128Epu8::fill(bias);
         let mut f = M128Epu8::fill(0);
@@ -1802,7 +1802,7 @@ mod sw_sse2 {
 
                 f = f - ge;
 
-                j = j + 1;
+                j += 1;
                 if j >= seg_num {
                     f = f << 1;
                     j = 0;
@@ -1842,7 +1842,7 @@ mod sw_sse2 {
 
         let overflow_threshold = u16::MAX.saturating_sub(bias);
 
-        let seg_num = (q.len() + 15) / 16;
+        let seg_num = q.len().div_ceil(16);
 
         let bias = M128Epu16::fill(bias);
         let mut f = M128Epu16::fill(0);
@@ -1892,7 +1892,7 @@ mod sw_sse2 {
 
                 f = f - ge;
 
-                j = j + 1;
+                j += 1;
                 if j >= seg_num {
                     f = f << 1;
                     j = 0;
@@ -2116,7 +2116,7 @@ mod sw_scalar {
                 let max = *current_h.iter().max().unwrap();
 
                 if max == u32::MAX {
-                    is_overflow = is_overflow + 1;
+                    is_overflow += 1;
                     if is_overflow > 1 {
                         Err(Error::OverFlow)?
                     }
@@ -2232,22 +2232,22 @@ mod sw_scalar {
             if direction[i][j] == 1 {
                 d_best.insert(0, d[i - 1]);
                 q_best.insert(0, b'-');
-                i = i - 1;
+                i -= 1;
                 continue;
             }
 
             if direction[i][j] == 2 {
                 d_best.insert(0, b'-');
                 q_best.insert(0, q[j - 1]);
-                j = j - 1;
+                j -= 1;
                 continue;
             }
 
             if direction[i][j] == 3 {
                 d_best.insert(0, d[i - 1]);
                 q_best.insert(0, q[j - 1]);
-                i = i - 1;
-                j = j - 1;
+                i -= 1;
+                j -= 1;
                 continue;
             }
         }
