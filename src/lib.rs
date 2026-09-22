@@ -106,7 +106,6 @@ pub mod score;
 /// Contain striped-smith-waterman implementation accelerated by **AVX2** and a serial implementation.
 pub mod pairwise;
 
-
 /// Defines several types of errors that can occur when running alignment
 ///
 ///
@@ -115,8 +114,7 @@ pub mod pairwise;
 /// * `IllegallChar`: Database or query sequence contain illegal character
 /// * `GetScoreErr`: There is no corresponding score for character pairs in the scoring rules
 #[derive(Debug, thiserror::Error)]
-pub enum Error
-{
+pub enum Error {
     /// Numerical overflow error during calculation
     #[error("Numerical overflow during calculation")]
     OverFlow,
