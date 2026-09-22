@@ -1,0 +1,35 @@
+# ============================================================
+# rustfmt configuration
+# ============================================================
+
+# ------------------------------------------------------------
+# 1. Braces: opening brace stays on the same line, closing brace
+#    on its own line (K&R style)
+# ------------------------------------------------------------
+# rustfmt defaults to K&R style:
+#   - control flow (if / else / for / while / match ...) keeps the
+#     opening brace on the same line as the statement;
+#   - items (fn / struct / enum / impl / trait ...) keep the opening
+#     brace on the same line as the declaration;
+#   - the closing brace always gets its own line.
+# So no extra configuration is needed to satisfy this requirement.
+#
+# Note: on the stable toolchain, brace_style / control_brace_style are
+# unstable options; if written here they are ignored and emit a warning.
+# On nightly you may declare them explicitly:
+#   control_brace_style = "AlwaysSameLine"
+#   brace_style = "SameLineWhere"
+
+# ------------------------------------------------------------
+# 2. Method chains: wrap once the chain exceeds the line width, and
+#    indent wrapped calls by one tab (block indentation)
+# ------------------------------------------------------------
+# rustfmt wraps chains using block indentation by default (aligned by
+# one tab level), rather than visual dot alignment (indent_style
+# defaults to "Block").
+#
+# Maximum width of a chain on a single line; chains wider than this
+# get wrapped. rustfmt only supports width-based wrapping (there is no
+# "wrap after N calls" option); lower this value to wrap earlier, which
+# approximates "wrap once there are more than two chained calls".
+chain_width = 60
