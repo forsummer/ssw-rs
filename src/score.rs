@@ -1,11 +1,10 @@
 mod blosum {
     /// Wrapping of scoring matrix **blosum62**
     ///
-    /// `blosum62()` is a wrapping of scoring matrix **blosum62**. When function called, if will
-    /// return a closure like `Option<i8>`.
-    /// The closure which return accept a pair of residue(nucleotide or amino acid) character,
-    /// then return the pair score.
-    /// If residue pair has no corresponding score in scoring matrix, closure will return `None`.
+    /// Direct scoring function for the **blosum62** matrix.
+    /// It accepts a pair of residues (nucleotide or amino acid) and returns the
+    /// corresponding score as `Option<i8>`.
+    /// If a residue pair has no score in the matrix, it returns `None`.
     ///
     /// ### Example
     /// ```rust
@@ -13,14 +12,14 @@ mod blosum {
     ///
     /// fn main()
     /// {
-    ///     // In this case, type of `blosum62_mat` is `Fn(u8, u8) -> Option<i8>`
-    ///     let blosum62_mat = blosum62();
+    ///     // `blosum62` is a direct scoring function: `Fn(u8, u8) -> Option<i8>`.
+    ///     let blosum62_mat = blosum62;
     ///
-    ///     // Character pairs "A - H" corresponding to score "-2", so the closure return
+    ///     // Character pairs "A - H" correspond to score "-2", so the function returns
     ///     // `Some(-2)`.
     ///     assert_eq!(blosum62_mat(b'A', b'H'), Some(-2));
     ///
-    ///     // Character pair "A-1" has no corresponding score, so the closure return `None`.
+    ///     // Character pair "A-1" has no corresponding score, so the function returns `None`.
     ///     assert_eq!(blosum62_mat(b'A', b'1'), None);
     /// }
     /// ```
@@ -152,10 +151,9 @@ mod blosum {
 
     /// Wrapping of scoring matrix **blosum50**
     ///
-    /// When blosum50() was called, it will return a closure like `Option<i8>`, this closure
-    /// accept a letter pairs.
-    /// If there is an associated score of letter pairs in the score matrix, the closure will
-    /// return the score, else closure return `None`
+    /// Direct scoring function for the **blosum50** matrix.
+    /// It accepts a pair of residues and returns the corresponding score as `Option<i8>`.
+    /// If a letter pair has no score in the matrix, it returns `None`.
     ///
     /// ### Example
     /// ```rust
@@ -163,14 +161,14 @@ mod blosum {
     ///
     /// fn main()
     /// {
-    ///     // In this case, the type of `blosum50_mat` is `Option<i8>`.
-    ///     let blosum50_mat = blosum50();
+    ///     // `blosum50` is a direct scoring function: `Fn(u8, u8) -> Option<i8>`.
+    ///     let blosum50_mat = blosum50;
     ///
     ///     // In scoring matrix `blosum50`, character pairs "A - H" corresponding to score "-2"
-    ///     // So, the closure return `Some(-2)`.
+    ///     // So, the function returns `Some(-2)`.
     ///     assert_eq!(blosum50_mat(b'A', b'H'), Some(-2));
     ///
-    ///     // Character pairs "A - 1" has no correspond score in scoring matrix, so the closure
+    ///     // Character pairs "A - 1" has no correspond score in scoring matrix, so the function
     ///     // return `None`.
     ///     assert_eq!(blosum50_mat(b'A', b'1'), None);
     /// }
@@ -302,9 +300,9 @@ mod blosum {
 mod pam {
     /// Wrapping of scoring matrix **pam120**
     ///
-    /// When `pam120()` was called, a closure like `Option<i8>` will be returned.
-    /// If there is an associated score of letter pairs in the score matrix, the closure will
-    /// return the score, else closure return `None`
+    /// Direct scoring function for the **pam120** matrix.
+    /// It accepts a pair of residues and returns the corresponding score as `Option<i8>`.
+    /// If a letter pair has no score in the matrix, it returns `None`.
     ///
     /// ### Example
     /// ```rust
@@ -312,14 +310,14 @@ mod pam {
     ///
     /// fn main()
     /// {
-    ///     // In this case, the type of `pam120_mat` is `Box<Fn(u8, u8) -> Option<i8>>`.
-    ///     let pam120_mat = pam120();
+    ///     // `pam120` is a direct scoring function: `Fn(u8, u8) -> Option<i8>`.
+    ///     let pam120_mat = pam120;
     ///
     ///     // In scoring matrix `pam120`, character pairs "A - H" corresponding to score "-3".
-    ///     // So, the closure return `Some(-3)`.
+    ///     // So, the function returns `Some(-3)`.
     ///     assert_eq!(pam120_mat(b'A', b'H'), Some(-3));
     ///
-    ///     // Character pairs "A - 1" has not corresponding score in `pam120`, so the closure
+    ///     // Character pairs "A - 1" has not corresponding score in `pam120`, so the function
     ///     // return 'None'.
     ///     assert_eq!(pam120_mat(b'A', b'1'), None);
     /// }

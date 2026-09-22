@@ -6,7 +6,7 @@
 //!
 //! This library provides the following two kinds of API in Rust:
 //! - smith-waterman algorithm implementaion which accelerated by **AVX2**
-//! - Wrapping of scoring matrix: `blosum50`, `blosum62` and `pam120`
+//! - Scoring functions: `blosum50`, `blosum62` and `pam120`
 //!
 //! ### Example: Use smith-waterman implementation accelerated by AVX2
 //! ```rust
@@ -33,14 +33,13 @@
 //!     // start and end position of best alignment and best traceback path
 //!     let flag = AlignFlag::Path;
 //!
-//!     // Module `score` packaging `blosum50`, `blosum62` and `pam120` matrix to a closure
-//!     // which like `Fn(u8, u8) -> Option<i8>`. Therefore, the user does not need to
-//!     // care about the index arrangement of the scoring matrix and whether a pair
-//!     // has a corresponding score in the matrix
-//!     let pair_score = blosum50();
+//!     // `blosum50` is a direct scoring function: `Fn(u8, u8) -> Option<i8>`.
+//!     // Therefore, the user does not need to care about the index arrangement of
+//!     // the scoring matrix or whether a pair has a corresponding score in the matrix.
+//!     let pair_score = blosum50;
 //!
 //!     // Alignment two sequence
-//!     let align_res = smith_waterman_avx2(d, q, go, ge, &flag, &pair_score)
+//!     let align_res = smith_waterman_avx2(d, q, go, ge, &flag, pair_score)
 //!         .map_or_else(|err| panic!("{}", err), |res| res);
 //!
 //!     println!("{}", align_res);
@@ -69,12 +68,12 @@
 //!     let go = 3;
 //!     let ge = 2;
 //!     let flag = AlignFlag::Path;
-//!     let pair_score = blosum50();
+//!     let pair_score = blosum50;
 //!
 //!     // `smith_waterman_avx2` and `smith_waterman_scalar` accept the same parameters,
 //!     // the difference being that the calculation speed of `smith_waterman_scalar`
 //!     // is much slower than `smith_waterman_avx2`
-//!     let align_res = smith_waterman_scalar(d, q, go, ge, &flag, &pair_score)
+//!     let align_res = smith_waterman_scalar(d, q, go, ge, &flag, pair_score)
 //!         .map_or_else(|err| panic!("{}", err), |res| res);
 //!
 //!     println!("{}", align_res);
@@ -96,12 +95,10 @@ mod avx;
 #[cfg(target_feature = "sse2")]
 mod sse2;
 
-/// Provide wrapping of scoring matrix, such as **blosum50**, **blosum62** and **pam120**.
-/// (The scoring matrix is wrapped into a closure like `Fn(u8, u8) -> Option<i8>`)
-/// When those function be called, it will return a closure like `Box<Fn(u8, u8) -> Option<i8>>`.
-/// The closure accept a character pairs(nucleotide or amino acid) and return corresponding
-/// score in scoring matrix.
-/// If character pairs has no corresponding score in scoring matrix, closure will return `None`.
+/// Provide scoring functions for **blosum50**, **blosum62** and **pam120** matrices.
+/// Each function accepts a pair of residues (nucleotide or amino acid) and returns the
+/// corresponding score as `Option<i8>`.
+/// If a character pair has no score in the matrix, the function returns `None`.
 pub mod score;
 
 /// Contain striped-smith-waterman implementation accelerated by **AVX2** and a serial

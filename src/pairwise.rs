@@ -977,9 +977,9 @@ mod sw_avx2 {
     /// based on a score matrix, such as **blosum50**, **blosum62** or a user-defined score rule.
     /// Thus, `ssw` library provides [`blosum50`](fn@crate::score::blosum50),
     /// [`blosum62`](fn@crate::score::blosum62),
-    /// [`pam120`](fn@crate::score::pam120) scoring matrices wrapped in closures.
-    /// Therefore, if you want to use custom scoring rule, just wrap it in closure like
-    /// `Fn(u8, u8) -> Option<i8>` and pass it to `smith_waterman_avx2` by parameter `f`.
+    /// [`pam120`](fn@crate::score::pam120) as direct scoring functions.
+    /// To use a custom scoring rule, pass any function or closure that implements
+    /// `Fn(u8, u8) -> Option<i8>` to `smith_waterman_avx2` via the `f` parameter.
     ///
     /// ### Error Handle
     /// Several errors that can occur during smith-waterman-avx2 execution are wrapping in
@@ -1009,11 +1009,11 @@ mod sw_avx2 {
     ///     let flag = AlignFlag::End;
     ///
     ///     // Scoring rule: bosum50 scoring matrix
-    ///     let pair = blosum50();
+    ///     let pair = blosum50;
     ///
     ///     // Parameter `flag` equal to `AlignFlag::End`,
     ///     // means find algnment endpoint and optimal score only.
-    ///     let res = smith_waterman_avx2(d, q, go, ge, &flag, &pair)
+    ///     let res = smith_waterman_avx2(d, q, go, ge, &flag, pair)
     ///         .map_or_else(|err| panic!("{}", err), |res| res);
     ///
     ///     println!("{}", res);
@@ -1044,9 +1044,9 @@ mod sw_avx2 {
     ///
     ///     let flag = AlignFlag::Path;
     ///
-    ///     let pair = blosum50();
+    ///     let pair = blosum50;
     ///
-    ///     let res = smith_waterman_avx2(d, q, go, ge, &flag, &pair)
+    ///     let res = smith_waterman_avx2(d, q, go, ge, &flag, pair)
     ///         .map_or_else(|err| panic!("{}", err), |res| res);
     ///
     ///     println!("{}", res);
@@ -2284,12 +2284,12 @@ mod sw_scalar {
     ///     let go = 3;
     ///     let ge = 2;
     ///     let flag = AlignFlag::End;
-    ///     let pair_score = blosum50();
+    ///     let pair_score = blosum50;
     ///
     ///     // `smith_waterman_avx2` and `smith_waterman_scalar` accept the same parameters,
     ///     // the difference being that the calculation speed of `smith_waterman_scalar`
     ///     // is much slower than `smith_waterman_avx2`
-    ///     let align_res = smith_waterman_scalar(d, q, go, ge, &flag, &pair_score)
+    ///     let align_res = smith_waterman_scalar(d, q, go, ge, &flag, pair_score)
     ///         .map_or_else(|err| panic!("{}", err), |res| res);
     ///
     ///     println!("{}", align_res);
@@ -2313,12 +2313,12 @@ mod sw_scalar {
     ///     let go = 3;
     ///     let ge = 2;
     ///     let flag = AlignFlag::Path;
-    ///     let pair_score = blosum50();
+    ///     let pair_score = blosum50;
     ///
     ///     // `smith_waterman_avx2` and `smith_waterman_scalar` accept the same parameters,
     ///     // the difference being that the calculation speed of `smith_waterman_scalar`
     ///     // is much slower than `smith_waterman_avx2`
-    ///     let align_res = smith_waterman_scalar(d, q, go, ge, &flag, &pair_score)
+    ///     let align_res = smith_waterman_scalar(d, q, go, ge, &flag, pair_score)
     ///         .map_or_else(|err| panic!("{}", err), |res| res);
     ///
     ///     println!("{}", align_res);
