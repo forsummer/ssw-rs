@@ -22,7 +22,7 @@ cargo test
 cargo run --release -- --help
 ```
 
-## ⚠️ Critical: CPU instruction set & portability
+## [WARNING] Critical: CPU instruction set & portability
 
 `.cargo/config.toml` injects:
 
