@@ -13,8 +13,7 @@
 //! use ssw::score::blosum50;
 //! use ssw::pairwise::{ AlignFlag, smith_waterman_avx2 };
 //!
-//! fn main()
-//! {
+//! fn main() {
 //!     // DataBase protein sequence
 //!     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
 //!
@@ -60,8 +59,7 @@
 //! use ssw::score::blosum50;
 //! use ssw::pairwise::{ AlignFlag, smith_waterman_scalar };
 //!
-//! fn main()
-//! {
+//! fn main() {
 //!     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
 //!     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();
 //!

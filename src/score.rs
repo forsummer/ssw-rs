@@ -10,8 +10,7 @@ mod blosum {
     /// ```rust
     /// use ssw::score::blosum62;
     ///
-    /// fn main()
-    /// {
+    /// fn main() {
     ///     // `blosum62` is a direct scoring function: `Fn(u8, u8) -> Option<i8>`.
     ///     let blosum62_mat = blosum62;
     ///
@@ -159,8 +158,7 @@ mod blosum {
     /// ```rust
     /// use ssw::score::blosum50;
     ///
-    /// fn main()
-    /// {
+    /// fn main() {
     ///     // `blosum50` is a direct scoring function: `Fn(u8, u8) -> Option<i8>`.
     ///     let blosum50_mat = blosum50;
     ///
@@ -308,8 +306,7 @@ mod pam {
     /// ```rust
     /// use ssw::score::pam120;
     ///
-    /// fn main()
-    /// {
+    /// fn main() {
     ///     // `pam120` is a direct scoring function: `Fn(u8, u8) -> Option<i8>`.
     ///     let pam120_mat = pam120;
     ///

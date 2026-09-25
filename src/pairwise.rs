@@ -992,8 +992,7 @@ mod sw_avx2 {
     /// use ssw::score::blosum50;
     /// use ssw::pairwise::{ AlignFlag, smith_waterman_avx2 };
     ///
-    /// fn main()
-    /// {
+    /// fn main() {
     ///     // Database sequence
     ///     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
     ///
@@ -1028,8 +1027,7 @@ mod sw_avx2 {
     /// use ssw::score::blosum50;
     /// use ssw::pairwise::{ AlignFlag, smith_waterman_avx2 };
     ///
-    /// fn main()
-    /// {
+    /// fn main() {
     ///     // Database sequence
     ///     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
     ///
@@ -2276,8 +2274,7 @@ mod sw_scalar {
     /// use ssw::score::blosum50;
     /// use ssw::pairwise::{ AlignFlag, smith_waterman_scalar };
     ///
-    /// fn main()
-    /// {
+    /// fn main() {
     ///     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
     ///     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();
     ///
@@ -2305,8 +2302,7 @@ mod sw_scalar {
     /// ```rust
     /// use ssw::score::blosum50;
     /// use ssw::pairwise::{ AlignFlag, smith_waterman_scalar };
-    /// fn main()
-    /// {
+    /// fn main() {
     ///     let d = "CLKQTQMRTDHARCGDFWEESHHHHHHFTLCIA".as_bytes();
     ///     let q = "CLKQTQMRTDHAMCGDFWEESHHHFTLCIA".as_bytes();
     ///
